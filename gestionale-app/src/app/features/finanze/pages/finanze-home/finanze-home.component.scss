@@ -52,7 +52,6 @@
   padding-bottom: 70px;
 }
 
-.back-button,
 .refresh-button,
 .secondary-button,
 .primary-button {
@@ -67,7 +66,6 @@
   cursor: pointer;
 }
 
-.back-button,
 .refresh-button,
 .secondary-button {
   background: white;
@@ -116,7 +114,6 @@ button:disabled {
 
 .setup-card,
 .account-card,
-.movement-form-card,
 .table-card,
 .cancelled-section {
   background: white;
@@ -328,53 +325,6 @@ textarea:focus {
   }
 }
 
-.movement-form-card {
-  margin-bottom: 22px;
-}
-
-.form-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-
-  h3 {
-    margin: 0;
-    color: #082c69;
-  }
-}
-
-.icon-button {
-  background: transparent;
-  border: none;
-  color: #48658b;
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
 .table-card {
   padding: 0;
   overflow: hidden;
@@ -528,6 +478,128 @@ td small {
   color: #48658b;
 }
 
+// =====================================================
+// DIALOG MOVIMENTI
+// =====================================================
+
+:host ::ng-deep .movimento-dialog {
+  .p-dialog-header {
+    padding: 22px 26px;
+    border-bottom: 1px solid #dceaff;
+  }
+
+  .p-dialog-content {
+    padding: 26px;
+  }
+
+  .p-dialog-footer {
+    padding: 18px 26px;
+    border-top: 1px solid #dceaff;
+  }
+
+  .p-dialog-header-icons {
+    margin-left: auto;
+  }
+
+  .p-dialog-header-icon {
+    color: #48658b;
+  }
+}
+
+.dialog-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #082c69;
+  font-size: 21px;
+  font-weight: 700;
+
+  i {
+    color: #0758d6;
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+// =====================================================
+// PULSANTE TIPO MOVIMENTO
+// =====================================================
+
+.movement-type-button {
+  width: 100%;
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+  }
+
+  .movement-type-switch {
+    margin-left: auto;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+}
+
+.movement-type-expense {
+  background: #dc2626;
+  border-color: #b91c1c;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+  }
+}
+
+.movement-type-income {
+  background: #16a34a;
+  border-color: #15803d;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+}
+
 @media (max-width: 1100px) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -559,16 +631,24 @@ td small {
 
   .setup-card,
   .account-card,
-  .movement-form-card,
   .cancelled-section {
     padding: 16px;
   }
 
-  .form-actions {
+  .dialog-actions {
     flex-wrap: wrap;
   }
 
   .cancelled-item {
     flex-direction: column;
+  }
+
+  :host ::ng-deep .movimento-dialog {
+    .p-dialog-header,
+    .p-dialog-content,
+    .p-dialog-footer {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
   }
 }

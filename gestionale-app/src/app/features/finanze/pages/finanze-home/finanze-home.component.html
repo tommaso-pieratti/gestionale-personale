@@ -2,14 +2,6 @@
 <div class="finanze-container">
 
   <div class="page-header">
-    <button
-      type="button"
-      class="back-button"
-      (click)="tornaDashboard()">
-      <i class="pi pi-arrow-left"></i>
-      Dashboard
-    </button>
-
     <div class="page-heading">
       <div>
         <h1>
@@ -91,7 +83,6 @@
           </div>
 
           <form (ngSubmit)="impostaSaldo()">
-
             <label for="saldo-iniziale">
               Saldo iniziale del conto (€)
             </label>
@@ -127,14 +118,11 @@
               <i class="pi pi-check"></i>
               Conferma saldo iniziale
             </button>
-
           </form>
         </div>
-
       </section>
 
       <section class="overview-section">
-
         <div class="section-title">
           <h2>Panoramica finanziaria</h2>
           <p>
@@ -202,7 +190,6 @@
             {{ formattaEuro(riepilogo.disponibilitaLibera) }}
           </strong>
         </div>
-
       </section>
 
       <section class="account-section">
@@ -245,7 +232,6 @@
       </section>
 
       <section class="movements-section">
-
         <div class="section-heading-row">
           <div class="section-title">
             <h2>Movimenti</h2>
@@ -264,145 +250,7 @@
           </button>
         </div>
 
-        <div
-          *ngIf="mostraModuloMovimento"
-          class="movement-form-card">
-
-          <div class="form-heading">
-            <h3>
-              {{
-                movimentoInModifica !== null
-                  ? 'Modifica movimento'
-                  : 'Nuovo movimento'
-              }}
-            </h3>
-
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Chiudi modulo"
-              (click)="chiudiModulo()">
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-
-          <form (ngSubmit)="salvaMovimento()">
-
-            <div class="form-grid">
-
-              <div class="field">
-                <label for="movimento-tipo">Tipo</label>
-                <select
-                  id="movimento-tipo"
-                  name="tipo"
-                  [(ngModel)]="modulo.tipo"
-                  [disabled]="salvataggio">
-                  <option value="ENTRATA">Entrata</option>
-                  <option value="USCITA">Uscita</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label for="movimento-importo">
-                  Importo (€)
-                </label>
-                <input
-                  id="movimento-importo"
-                  name="importo"
-                  type="text"
-                  inputmode="decimal"
-                  placeholder="Es. 45,90"
-                  [(ngModel)]="modulo.importo"
-                  [disabled]="salvataggio"
-                  required
-                />
-              </div>
-
-              <div class="field">
-                <label for="movimento-data">Data</label>
-                <input
-                  id="movimento-data"
-                  name="dataMovimento"
-                  type="date"
-                  [(ngModel)]="modulo.dataMovimento"
-                  [disabled]="salvataggio"
-                  required
-                />
-              </div>
-
-              <div class="field">
-                <label for="movimento-categoria">
-                  Categoria
-                </label>
-                <input
-                  id="movimento-categoria"
-                  name="categoria"
-                  type="text"
-                  maxlength="100"
-                  placeholder="Es. Alimentari"
-                  [(ngModel)]="modulo.categoria"
-                  [disabled]="salvataggio"
-                />
-              </div>
-
-              <div class="field full-width">
-                <label for="movimento-descrizione">
-                  Descrizione
-                </label>
-                <input
-                  id="movimento-descrizione"
-                  name="descrizione"
-                  type="text"
-                  maxlength="255"
-                  placeholder="Es. Spesa supermercato"
-                  [(ngModel)]="modulo.descrizione"
-                  [disabled]="salvataggio"
-                  required
-                />
-              </div>
-
-              <div class="field full-width">
-                <label for="movimento-note">
-                  Note
-                </label>
-                <textarea
-                  id="movimento-note"
-                  name="note"
-                  rows="3"
-                  [(ngModel)]="modulo.note"
-                  [disabled]="salvataggio"
-                  placeholder="Note facoltative">
-                </textarea>
-              </div>
-
-            </div>
-
-            <div class="form-actions">
-              <button
-                type="button"
-                class="secondary-button"
-                (click)="chiudiModulo()">
-                Annulla
-              </button>
-
-              <button
-                type="submit"
-                class="primary-button"
-                [disabled]="salvataggio">
-                <i class="pi pi-save"></i>
-                {{
-                  movimentoInModifica !== null
-                    ? 'Salva modifiche'
-                    : 'Registra movimento'
-                }}
-              </button>
-            </div>
-
-          </form>
-        </div>
-
         <div class="table-card">
-
           <div class="table-scroll">
             <table>
               <thead>
@@ -417,7 +265,6 @@
               </thead>
 
               <tbody>
-
                 <tr *ngIf="movimentiAttivi.length === 0">
                   <td colspan="6" class="empty-state">
                     Nessun movimento registrato.
@@ -475,11 +322,9 @@
                     </div>
                   </td>
                 </tr>
-
               </tbody>
             </table>
           </div>
-
         </div>
 
         <div
@@ -500,9 +345,7 @@
               <span class="cancelled-label">Annullato</span>
             </span>
           </div>
-
         </div>
-
       </section>
 
       <section class="next-section">
@@ -517,7 +360,177 @@
       </section>
 
     </ng-container>
-
   </main>
+
+  <!-- DIALOG NUOVO / MODIFICA MOVIMENTO -->
+
+  <p-dialog
+    [(visible)]="mostraModuloMovimento"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [dismissableMask]="false"
+    [closable]="!salvataggio"
+    [closeOnEscape]="!salvataggio"
+    [style]="{ width: '750px', maxWidth: '95vw' }"
+    [contentStyle]="{ 'max-height': '70vh', 'overflow-y': 'auto' }"
+    styleClass="movimento-dialog"
+    (onHide)="chiudiModulo()">
+
+    <ng-template pTemplate="header">
+      <div class="dialog-heading">
+        <i class="pi pi-arrow-left-right"></i>
+        <span>
+          {{
+            movimentoInModifica !== null
+              ? 'Modifica movimento'
+              : 'Nuovo movimento'
+          }}
+        </span>
+      </div>
+    </ng-template>
+
+    <form
+      id="movimento-form"
+      (ngSubmit)="salvaMovimento()">
+
+      <div class="form-grid">
+
+        <div class="field">
+          <label id="movimento-tipo-label">
+            Tipo
+          </label>
+
+          <button
+            type="button"
+            class="movement-type-button"
+            [class.movement-type-expense]="modulo.tipo === 'USCITA'"
+            [class.movement-type-income]="modulo.tipo === 'ENTRATA'"
+            [disabled]="salvataggio"
+            [attr.aria-labelledby]="'movimento-tipo-label'"
+            [attr.aria-pressed]="modulo.tipo === 'ENTRATA'"
+            title="Clicca per cambiare tipo di movimento"
+            (click)="modulo.tipo = modulo.tipo === 'USCITA' ? 'ENTRATA' : 'USCITA'">
+
+            <i
+              class="pi"
+              [ngClass]="modulo.tipo === 'USCITA'
+                ? 'pi-arrow-up-right'
+                : 'pi-arrow-down-left'">
+            </i>
+
+            <span>
+              {{
+                modulo.tipo === 'USCITA'
+                  ? 'USCITA'
+                  : 'ENTRATA'
+              }}
+            </span>
+
+            <i class="pi pi-sync movement-type-switch"></i>
+          </button>
+        </div>
+
+        <div class="field">
+          <label for="movimento-importo">
+            Importo (€)
+          </label>
+          <input
+            id="movimento-importo"
+            name="importo"
+            type="text"
+            inputmode="decimal"
+            placeholder="Es. 45,90"
+            [(ngModel)]="modulo.importo"
+            [disabled]="salvataggio"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="movimento-data">Data</label>
+          <input
+            id="movimento-data"
+            name="dataMovimento"
+            type="date"
+            [(ngModel)]="modulo.dataMovimento"
+            [disabled]="salvataggio"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="movimento-categoria">
+            Categoria
+          </label>
+          <input
+            id="movimento-categoria"
+            name="categoria"
+            type="text"
+            maxlength="100"
+            placeholder="Es. Alimentari"
+            [(ngModel)]="modulo.categoria"
+            [disabled]="salvataggio"
+          />
+        </div>
+
+        <div class="field full-width">
+          <label for="movimento-descrizione">
+            Descrizione
+          </label>
+          <input
+            id="movimento-descrizione"
+            name="descrizione"
+            type="text"
+            maxlength="255"
+            placeholder="Es. Spesa supermercato"
+            [(ngModel)]="modulo.descrizione"
+            [disabled]="salvataggio"
+            required
+          />
+        </div>
+
+        <div class="field full-width">
+          <label for="movimento-note">
+            Note
+          </label>
+          <textarea
+            id="movimento-note"
+            name="note"
+            rows="3"
+            [(ngModel)]="modulo.note"
+            [disabled]="salvataggio"
+            placeholder="Note facoltative">
+          </textarea>
+        </div>
+      </div>
+    </form>
+
+    <ng-template pTemplate="footer">
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          [disabled]="salvataggio"
+          (click)="chiudiModulo()">
+          Annulla
+        </button>
+
+        <button
+          type="submit"
+          form="movimento-form"
+          class="primary-button"
+          [disabled]="salvataggio">
+          <i class="pi pi-save"></i>
+          {{
+            movimentoInModifica !== null
+              ? 'Salva modifiche'
+              : 'Registra movimento'
+          }}
+        </button>
+      </div>
+    </ng-template>
+
+  </p-dialog>
 
 </div>
