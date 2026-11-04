@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { CalendarModule } from 'primeng/calendar';
 
 import { FinanzeRoutingModule } from './finanze-routing.module';
 
@@ -23,7 +24,8 @@ import {
     FinanzeRoutingModule,
     CardModule,
     ButtonModule,
-    DialogModule
+    DialogModule,
+    CalendarModule
   ]
 })
 export class FinanzeModule {}
