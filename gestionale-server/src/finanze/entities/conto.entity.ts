@@ -8,10 +8,16 @@ import {
 
 @Entity('conti')
 export class Conto {
-  @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
+  @PrimaryGeneratedColumn({
+    type: 'int',
+    unsigned: true,
+  })
   id: number;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({
+    type: 'varchar',
+    length: 100,
+  })
   nome: string;
 
   @Column({
@@ -29,6 +35,14 @@ export class Conto {
     default: 0,
   })
   saldoIniziale: string;
+
+  @Column({
+    name: 'saldo_iniziale_confermato_il',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
+  saldoInizialeConfermatoIl: Date | null;
 
   @CreateDateColumn({
     name: 'creato_il',
