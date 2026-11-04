@@ -1,200 +1,523 @@
 
 <div class="finanze-container">
 
-  <section class="finanze-intro">
-
-    <a class="back-link" routerLink="/">
+  <div class="page-header">
+    <button
+      type="button"
+      class="back-button"
+      (click)="tornaDashboard()">
       <i class="pi pi-arrow-left"></i>
       Dashboard
-    </a>
+    </button>
 
-    <h1>
-      <i class="pi pi-wallet"></i>
-      Gestione Finanze
-    </h1>
+    <div class="page-heading">
+      <div>
+        <h1>
+          <i class="pi pi-wallet"></i>
+          Gestione Finanze
+        </h1>
+        <p>Il tuo conto personale e i tuoi movimenti.</p>
+      </div>
 
-    <p>
-      Controlla e organizza le tue finanze personali.
+      <button
+        type="button"
+        class="refresh-button"
+        [disabled]="caricamento"
+        (click)="caricaDati()">
+        <i class="pi pi-refresh"></i>
+        Aggiorna
+      </button>
+    </div>
+  </div>
+
+  <main class="finanze-content">
+
+    <div
+      *ngIf="errore"
+      class="notice notice-error"
+      role="alert">
+      <i class="pi pi-exclamation-circle"></i>
+      <span>{{ errore }}</span>
+      <button
+        type="button"
+        aria-label="Chiudi errore"
+        (click)="errore = ''">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div
+      *ngIf="messaggio"
+      class="notice notice-success"
+      role="status">
+      <i class="pi pi-check-circle"></i>
+      <span>{{ messaggio }}</span>
+      <button
+        type="button"
+        aria-label="Chiudi messaggio"
+        (click)="messaggio = ''">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <p *ngIf="caricamento && !riepilogo" class="loading">
+      Caricamento dei dati finanziari...
     </p>
 
-  </section>
+    <ng-container *ngIf="conto && riepilogo">
 
-  <section class="finanze-content">
+      <section
+        *ngIf="!conto.configurato"
+        class="setup-section">
 
-    <div class="section-heading">
-      <h2>Panoramica finanziaria</h2>
-      <p>
-        Situazione generale del tuo conto personale
-      </p>
-    </div>
-
-    <div class="summary-grid">
-
-      <p-card styleClass="summary-card">
-
-        <div class="summary-heading">
-          <i class="pi pi-wallet"></i>
-          <h3>Saldo del conto</h3>
+        <div class="section-title">
+          <h2>Configurazione iniziale del conto</h2>
+          <p>
+            Imposta il saldo di partenza del tuo conto personale.
+          </p>
         </div>
 
-        <div class="summary-value balance">
-          € 0,00
-        </div>
-
-        <p>Saldo complessivo del tuo conto</p>
-
-      </p-card>
-
-      <p-card styleClass="summary-card">
-
-        <div class="summary-heading">
-          <i class="pi pi-arrow-up-right income"></i>
-          <h3>Entrate</h3>
-        </div>
-
-        <div class="summary-value income">
-          € 0,00
-        </div>
-
-        <p>Totale entrate del mese</p>
-
-      </p-card>
-
-      <p-card styleClass="summary-card">
-
-        <div class="summary-heading">
-          <i class="pi pi-arrow-down-right expense"></i>
-          <h3>Uscite</h3>
-        </div>
-
-        <div class="summary-value expense">
-          € 0,00
-        </div>
-
-        <p>Totale uscite del mese</p>
-
-      </p-card>
-
-      <p-card styleClass="summary-card">
-
-        <div class="summary-heading">
-          <i class="pi pi-wallet savings"></i>
-          <h3>Salvadanai</h3>
-        </div>
-
-        <div class="summary-value savings">
-          € 0,00
-        </div>
-
-        <p>Totale accantonato nei salvadanai</p>
-
-      </p-card>
-
-    </div>
-
-    <div class="available-balance">
-      <div>
-        <span class="available-label">
-          Disponibilità libera
-        </span>
-
-        <p>
-          Saldo del conto meno gli importi
-          accantonati nei salvadanai.
-        </p>
-      </div>
-
-      <strong>€ 0,00</strong>
-    </div>
-
-    <section class="finanze-modules">
-
-      <div class="section-heading">
-        <h2>Gestione</h2>
-        <p>
-          Accedi alle funzionalità finanziarie
-        </p>
-      </div>
-
-      <div class="modules-grid">
-
-        <p-card styleClass="finance-module-card">
-
-          <div class="module-heading">
-            <i class="pi pi-building-columns"></i>
-            <h3>Il mio conto</h3>
+        <div class="setup-card">
+          <div class="setup-warning">
+            <i class="pi pi-info-circle"></i>
+            <div>
+              <strong>Attenzione: operazione definitiva</strong>
+              <p>
+                Il saldo iniziale potrà essere impostato
+                una sola volta. In seguito, il saldo
+                cambierà soltanto attraverso i movimenti.
+              </p>
+            </div>
           </div>
 
+          <form (ngSubmit)="impostaSaldo()">
+
+            <label for="saldo-iniziale">
+              Saldo iniziale del conto (€)
+            </label>
+
+            <input
+              id="saldo-iniziale"
+              name="saldoIniziale"
+              type="text"
+              inputmode="decimal"
+              placeholder="Es. 1500,00"
+              [(ngModel)]="saldoIniziale"
+              [disabled]="salvataggio"
+              required
+            />
+
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                name="confermaSaldo"
+                [(ngModel)]="confermaSaldo"
+                [disabled]="salvataggio"
+              />
+              <span>
+                Ho verificato l'importo e comprendo
+                che non potrò modificarlo successivamente.
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              class="primary-button"
+              [disabled]="salvataggio || !confermaSaldo">
+              <i class="pi pi-check"></i>
+              Conferma saldo iniziale
+            </button>
+
+          </form>
+        </div>
+
+      </section>
+
+      <section class="overview-section">
+
+        <div class="section-title">
+          <h2>Panoramica finanziaria</h2>
           <p>
-            Visualizza il saldo del tuo conto
-            personale e le sue informazioni.
+            Situazione aggiornata del tuo conto personale.
           </p>
+        </div>
 
-          <span class="coming-soon">
-            Da sviluppare
-          </span>
+        <div class="summary-grid">
 
-        </p-card>
+          <p-card styleClass="summary-card">
+            <div class="summary-label">
+              <i class="pi pi-building-columns"></i>
+              <span>Saldo attuale</span>
+            </div>
+            <div class="summary-amount">
+              {{ formattaEuro(riepilogo.saldoConto) }}
+            </div>
+            <p>Saldo iniziale più entrate meno uscite</p>
+          </p-card>
 
-        <p-card styleClass="finance-module-card">
+          <p-card styleClass="summary-card">
+            <div class="summary-label">
+              <i class="pi pi-arrow-down-left income"></i>
+              <span>Entrate</span>
+            </div>
+            <div class="summary-amount income">
+              {{ formattaEuro(riepilogo.entrate) }}
+            </div>
+            <p>Totale delle entrate registrate</p>
+          </p-card>
 
-          <div class="module-heading">
-            <i class="pi pi-arrow-right-arrow-left"></i>
-            <h3>Movimenti</h3>
+          <p-card styleClass="summary-card">
+            <div class="summary-label">
+              <i class="pi pi-arrow-up-right expense"></i>
+              <span>Uscite</span>
+            </div>
+            <div class="summary-amount expense">
+              {{ formattaEuro(riepilogo.uscite) }}
+            </div>
+            <p>Totale delle uscite registrate</p>
+          </p-card>
+
+          <p-card styleClass="summary-card">
+            <div class="summary-label">
+              <i class="pi pi-wallet savings"></i>
+              <span>Salvadanai</span>
+            </div>
+            <div class="summary-amount savings">
+              {{ formattaEuro(riepilogo.totaleSalvadanai) }}
+            </div>
+            <p>Denaro riservato virtualmente</p>
+          </p-card>
+
+        </div>
+
+        <div class="available-card">
+          <div>
+            <h3>Disponibilità libera</h3>
+            <p>
+              Saldo attuale meno gli importi
+              riservati ai salvadanai.
+            </p>
+          </div>
+          <strong>
+            {{ formattaEuro(riepilogo.disponibilitaLibera) }}
+          </strong>
+        </div>
+
+      </section>
+
+      <section class="account-section">
+        <div class="section-title">
+          <h2>Il mio conto</h2>
+          <p>Informazioni sul conto personale.</p>
+        </div>
+
+        <div class="account-card">
+          <div class="account-row">
+            <span>Nome del conto</span>
+            <strong>{{ conto.nome }}</strong>
           </div>
 
-          <p>
-            Registra entrate e uscite,
-            consulta lo storico dei movimenti.
-          </p>
-
-          <span class="coming-soon">
-            Da sviluppare
-          </span>
-
-        </p-card>
-
-        <p-card styleClass="finance-module-card">
-
-          <div class="module-heading">
-            <i class="pi pi-tags"></i>
-            <h3>Categorie</h3>
+          <div class="account-row">
+            <span>Valuta</span>
+            <strong>{{ conto.valuta }}</strong>
           </div>
 
-          <p>
-            Organizza le tue spese e le entrate
-            attraverso categorie personalizzate.
-          </p>
-
-          <span class="coming-soon">
-            Da sviluppare
-          </span>
-
-        </p-card>
-
-        <p-card styleClass="finance-module-card">
-
-          <div class="module-heading">
-            <i class="pi pi-wallet"></i>
-            <h3>Salvadanai</h3>
+          <div class="account-row">
+            <span>Saldo iniziale</span>
+            <strong>
+              {{ formattaEuro(conto.saldoIniziale) }}
+            </strong>
           </div>
 
+          <div class="account-row">
+            <span>Configurazione</span>
+            <span
+              class="status"
+              [class.status-ready]="conto.configurato">
+              {{
+                conto.configurato
+                  ? 'Saldo iniziale confermato'
+                  : 'Da completare'
+              }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="movements-section">
+
+        <div class="section-heading-row">
+          <div class="section-title">
+            <h2>Movimenti</h2>
+            <p>
+              Registra e correggi le entrate e le uscite.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="primary-button"
+            [disabled]="!conto.configurato || salvataggio"
+            (click)="nuovoMovimento()">
+            <i class="pi pi-plus"></i>
+            Nuovo movimento
+          </button>
+        </div>
+
+        <div
+          *ngIf="mostraModuloMovimento"
+          class="movement-form-card">
+
+          <div class="form-heading">
+            <h3>
+              {{
+                movimentoInModifica !== null
+                  ? 'Modifica movimento'
+                  : 'Nuovo movimento'
+              }}
+            </h3>
+
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Chiudi modulo"
+              (click)="chiudiModulo()">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <form (ngSubmit)="salvaMovimento()">
+
+            <div class="form-grid">
+
+              <div class="field">
+                <label for="movimento-tipo">Tipo</label>
+                <select
+                  id="movimento-tipo"
+                  name="tipo"
+                  [(ngModel)]="modulo.tipo"
+                  [disabled]="salvataggio">
+                  <option value="ENTRATA">Entrata</option>
+                  <option value="USCITA">Uscita</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="movimento-importo">
+                  Importo (€)
+                </label>
+                <input
+                  id="movimento-importo"
+                  name="importo"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="Es. 45,90"
+                  [(ngModel)]="modulo.importo"
+                  [disabled]="salvataggio"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="movimento-data">Data</label>
+                <input
+                  id="movimento-data"
+                  name="dataMovimento"
+                  type="date"
+                  [(ngModel)]="modulo.dataMovimento"
+                  [disabled]="salvataggio"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="movimento-categoria">
+                  Categoria
+                </label>
+                <input
+                  id="movimento-categoria"
+                  name="categoria"
+                  type="text"
+                  maxlength="100"
+                  placeholder="Es. Alimentari"
+                  [(ngModel)]="modulo.categoria"
+                  [disabled]="salvataggio"
+                />
+              </div>
+
+              <div class="field full-width">
+                <label for="movimento-descrizione">
+                  Descrizione
+                </label>
+                <input
+                  id="movimento-descrizione"
+                  name="descrizione"
+                  type="text"
+                  maxlength="255"
+                  placeholder="Es. Spesa supermercato"
+                  [(ngModel)]="modulo.descrizione"
+                  [disabled]="salvataggio"
+                  required
+                />
+              </div>
+
+              <div class="field full-width">
+                <label for="movimento-note">
+                  Note
+                </label>
+                <textarea
+                  id="movimento-note"
+                  name="note"
+                  rows="3"
+                  [(ngModel)]="modulo.note"
+                  [disabled]="salvataggio"
+                  placeholder="Note facoltative">
+                </textarea>
+              </div>
+
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="secondary-button"
+                (click)="chiudiModulo()">
+                Annulla
+              </button>
+
+              <button
+                type="submit"
+                class="primary-button"
+                [disabled]="salvataggio">
+                <i class="pi pi-save"></i>
+                {{
+                  movimentoInModifica !== null
+                    ? 'Salva modifiche'
+                    : 'Registra movimento'
+                }}
+              </button>
+            </div>
+
+          </form>
+        </div>
+
+        <div class="table-card">
+
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Descrizione</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th class="amount-column">Importo</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                <tr *ngIf="movimentiAttivi.length === 0">
+                  <td colspan="6" class="empty-state">
+                    Nessun movimento registrato.
+                  </td>
+                </tr>
+
+                <tr *ngFor="let movimento of movimentiAttivi">
+                  <td>{{ movimento.dataMovimento }}</td>
+                  <td>
+                    <strong>{{ movimento.descrizione }}</strong>
+                    <small *ngIf="movimento.note">
+                      {{ movimento.note }}
+                    </small>
+                  </td>
+                  <td>{{ movimento.categoria || '—' }}</td>
+                  <td>
+                    <span
+                      class="type-badge"
+                      [class.type-income]="movimento.tipo === 'ENTRATA'"
+                      [class.type-expense]="movimento.tipo === 'USCITA'">
+                      {{
+                        movimento.tipo === 'ENTRATA'
+                          ? 'Entrata'
+                          : 'Uscita'
+                      }}
+                    </span>
+                  </td>
+                  <td
+                    class="amount-column"
+                    [class.income]="movimento.tipo === 'ENTRATA'"
+                    [class.expense]="movimento.tipo === 'USCITA'">
+                    {{
+                      movimento.tipo === 'ENTRATA' ? '+' : '−'
+                    }}
+                    {{ formattaEuro(movimento.importo) }}
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        title="Modifica movimento"
+                        [disabled]="salvataggio"
+                        (click)="modificaMovimento(movimento)">
+                        <i class="pi pi-pencil"></i>
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Annulla movimento"
+                        class="delete-button"
+                        [disabled]="salvataggio"
+                        (click)="annullaMovimento(movimento)">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <div
+          *ngIf="movimentiAnnullati.length > 0"
+          class="cancelled-section">
+
+          <h3>Movimenti annullati</h3>
+
+          <div
+            class="cancelled-item"
+            *ngFor="let movimento of movimentiAnnullati">
+            <span>
+              {{ movimento.dataMovimento }} —
+              {{ movimento.descrizione }}
+            </span>
+            <span>
+              {{ formattaEuro(movimento.importo) }}
+              <span class="cancelled-label">Annullato</span>
+            </span>
+          </div>
+
+        </div>
+
+      </section>
+
+      <section class="next-section">
+        <div class="section-title">
+          <h2>Salvadanai virtuali</h2>
           <p>
-            Crea obiettivi di risparmio,
-            accantona denaro e monitora
-            i tuoi progressi.
+            Il backend è già predisposto.
+            Nel prossimo passaggio realizzeremo
+            la gestione completa dei salvadanai.
           </p>
+        </div>
+      </section>
 
-          <span class="coming-soon">
-            Da sviluppare
-          </span>
+    </ng-container>
 
-        </p-card>
-
-      </div>
-
-    </section>
-
-  </section>
+  </main>
 
 </div>
