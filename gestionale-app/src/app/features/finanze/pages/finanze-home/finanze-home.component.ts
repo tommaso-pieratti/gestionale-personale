@@ -13,6 +13,8 @@ import {
   TipoMovimento
 } from '../../services/finanze-api.service';
 
+type SchedaFinanze = 'riepilogo' | 'movimenti' | 'salvadanai';
+
 interface ModuloMovimento {
   tipo: TipoMovimento;
   importo: string;
@@ -28,6 +30,10 @@ interface ModuloMovimento {
   styleUrls: ['./finanze-home.component.scss']
 })
 export class FinanzeHomeComponent implements OnInit {
+
+  // Scheda attualmente selezionata
+  schedaAttiva: SchedaFinanze = 'riepilogo';
+
   conto: Conto | null = null;
   riepilogo: RiepilogoFinanze | null = null;
   movimenti: Movimento[] = [];
@@ -52,6 +58,20 @@ export class FinanzeHomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.caricaDati();
+  }
+
+  cambiaScheda(scheda: SchedaFinanze): void {
+    this.schedaAttiva = scheda;
+    this.errore = '';
+    this.messaggio = '';
+
+    if (!this.mostraModuloMovimento) {
+      this.caricaDati();
+    }
+  }
+
+  apriSalvadanai(): void {
+    this.router.navigate(['/finanze/salvadanai']);
   }
 
   tornaDashboard(): void {

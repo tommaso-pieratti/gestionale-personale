@@ -1,6 +1,8 @@
 
 <div class="finanze-container">
 
+  <!-- INTESTAZIONE -->
+
   <div class="page-header">
     <div class="page-heading">
       <div>
@@ -23,6 +25,82 @@
   </div>
 
   <main class="finanze-content">
+
+    <!-- NAVIGAZIONE A SCHEDE -->
+
+    <nav
+      aria-label="Sezioni gestione finanze"
+      style="
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 28px;
+        padding: 8px;
+        background: #e8f0ff;
+        border: 1px solid #c6d9ff;
+        border-radius: 14px;
+      ">
+
+      <button
+        type="button"
+        (click)="cambiaScheda('riepilogo')"
+        [attr.aria-current]="schedaAttiva === 'riepilogo' ? 'page' : null"
+        [style.background]="schedaAttiva === 'riepilogo' ? '#145bd7' : 'transparent'"
+        [style.color]="schedaAttiva === 'riepilogo' ? '#ffffff' : '#12366d'"
+        style="
+          flex: 1 1 160px;
+          border: none;
+          border-radius: 10px;
+          padding: 15px 18px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+        ">
+        <i class="pi pi-chart-pie"></i>
+        Riepilogo
+      </button>
+
+      <button
+        type="button"
+        (click)="cambiaScheda('movimenti')"
+        [attr.aria-current]="schedaAttiva === 'movimenti' ? 'page' : null"
+        [style.background]="schedaAttiva === 'movimenti' ? '#145bd7' : 'transparent'"
+        [style.color]="schedaAttiva === 'movimenti' ? '#ffffff' : '#12366d'"
+        style="
+          flex: 1 1 160px;
+          border: none;
+          border-radius: 10px;
+          padding: 15px 18px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+        ">
+        <i class="pi pi-arrow-right-arrow-left"></i>
+        Movimenti
+      </button>
+
+      <button
+        type="button"
+        (click)="cambiaScheda('salvadanai')"
+        [attr.aria-current]="schedaAttiva === 'salvadanai' ? 'page' : null"
+        [style.background]="schedaAttiva === 'salvadanai' ? '#145bd7' : 'transparent'"
+        [style.color]="schedaAttiva === 'salvadanai' ? '#ffffff' : '#12366d'"
+        style="
+          flex: 1 1 160px;
+          border: none;
+          border-radius: 10px;
+          padding: 15px 18px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+        ">
+        <i class="pi pi-wallet"></i>
+        Salvadanai
+      </button>
+
+    </nav>
+
+    <!-- MESSAGGI -->
 
     <div
       *ngIf="errore"
@@ -52,321 +130,330 @@
       </button>
     </div>
 
-    <p *ngIf="caricamento && !riepilogo" class="loading">
+    <p
+      *ngIf="caricamento && !riepilogo"
+      class="loading">
       Caricamento dei dati finanziari...
     </p>
 
     <ng-container *ngIf="conto && riepilogo">
 
-      <section
-        *ngIf="!conto.configurato"
-        class="setup-section">
+      <!-- SCHEDA RIEPILOGO -->
 
-        <div class="section-title">
-          <h2>Configurazione iniziale del conto</h2>
-          <p>
-            Imposta il saldo di partenza del tuo conto personale.
-          </p>
-        </div>
+      <ng-container *ngIf="schedaAttiva === 'riepilogo'">
 
-        <div class="setup-card">
-          <div class="setup-warning">
-            <i class="pi pi-info-circle"></i>
-            <div>
-              <strong>Attenzione: operazione definitiva</strong>
-              <p>
-                Il saldo iniziale potrà essere impostato
-                una sola volta. In seguito, il saldo
-                cambierà soltanto attraverso i movimenti.
-              </p>
-            </div>
-          </div>
+        <section
+          *ngIf="!conto.configurato"
+          class="setup-section">
 
-          <form (ngSubmit)="impostaSaldo()">
-
-            <label for="saldo-iniziale">
-              Saldo iniziale del conto (€)
-            </label>
-
-            <input
-              id="saldo-iniziale"
-              name="saldoIniziale"
-              type="text"
-              inputmode="decimal"
-              placeholder="Es. 1500,00"
-              [(ngModel)]="saldoIniziale"
-              [disabled]="salvataggio"
-              required
-            />
-
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                name="confermaSaldo"
-                [(ngModel)]="confermaSaldo"
-                [disabled]="salvataggio"
-              />
-              <span>
-                Ho verificato l'importo e comprendo
-                che non potrò modificarlo successivamente.
-              </span>
-            </label>
-
-            <button
-              type="submit"
-              class="primary-button"
-              [disabled]="salvataggio || !confermaSaldo">
-              <i class="pi pi-check"></i>
-              Conferma saldo iniziale
-            </button>
-
-          </form>
-        </div>
-
-      </section>
-
-      <section class="overview-section">
-
-        <div class="section-title">
-          <h2>Panoramica finanziaria</h2>
-          <p>
-            Situazione aggiornata del tuo conto personale.
-          </p>
-        </div>
-
-        <div class="summary-grid">
-
-          <p-card styleClass="summary-card">
-            <div class="summary-label">
-              <i class="pi pi-building-columns"></i>
-              <span>Saldo attuale</span>
-            </div>
-            <div class="summary-amount">
-              {{ formattaEuro(riepilogo.saldoConto) }}
-            </div>
-            <p>Saldo iniziale più entrate meno uscite</p>
-          </p-card>
-
-          <p-card styleClass="summary-card">
-            <div class="summary-label">
-              <i class="pi pi-arrow-down-left income"></i>
-              <span>Entrate</span>
-            </div>
-            <div class="summary-amount income">
-              {{ formattaEuro(riepilogo.entrate) }}
-            </div>
-            <p>Totale delle entrate registrate</p>
-          </p-card>
-
-          <p-card styleClass="summary-card">
-            <div class="summary-label">
-              <i class="pi pi-arrow-up-right expense"></i>
-              <span>Uscite</span>
-            </div>
-            <div class="summary-amount expense">
-              {{ formattaEuro(riepilogo.uscite) }}
-            </div>
-            <p>Totale delle uscite registrate</p>
-          </p-card>
-
-          <p-card styleClass="summary-card">
-            <div class="summary-label">
-              <i class="pi pi-wallet savings"></i>
-              <span>Salvadanai</span>
-            </div>
-            <div class="summary-amount savings">
-              {{ formattaEuro(riepilogo.totaleSalvadanai) }}
-            </div>
-            <p>Denaro riservato virtualmente</p>
-          </p-card>
-
-        </div>
-
-        <div class="available-card">
-          <div>
-            <h3>Disponibilità libera</h3>
+          <div class="section-title">
+            <h2>Configurazione iniziale del conto</h2>
             <p>
-              Saldo attuale meno gli importi
-              riservati ai salvadanai.
+              Imposta il saldo di partenza del tuo conto personale.
             </p>
           </div>
-          <strong>
-            {{ formattaEuro(riepilogo.disponibilitaLibera) }}
-          </strong>
-        </div>
 
-      </section>
+          <div class="setup-card">
+            <div class="setup-warning">
+              <i class="pi pi-info-circle"></i>
+              <div>
+                <strong>Attenzione: operazione definitiva</strong>
+                <p>
+                  Il saldo iniziale potrà essere impostato
+                  una sola volta. In seguito, il saldo
+                  cambierà soltanto attraverso i movimenti.
+                </p>
+              </div>
+            </div>
 
-      <section class="account-section">
-        <div class="section-title">
-          <h2>Il mio conto</h2>
-          <p>Informazioni sul conto personale.</p>
-        </div>
+            <form (ngSubmit)="impostaSaldo()">
 
-        <div class="account-card">
-          <div class="account-row">
-            <span>Nome del conto</span>
-            <strong>{{ conto.nome }}</strong>
+              <label for="saldo-iniziale">
+                Saldo iniziale del conto (€)
+              </label>
+
+              <input
+                id="saldo-iniziale"
+                name="saldoIniziale"
+                type="text"
+                inputmode="decimal"
+                placeholder="Es. 1500,00"
+                [(ngModel)]="saldoIniziale"
+                [disabled]="salvataggio"
+                required
+              />
+
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="confermaSaldo"
+                  [(ngModel)]="confermaSaldo"
+                  [disabled]="salvataggio"
+                />
+                <span>
+                  Ho verificato l'importo e comprendo
+                  che non potrò modificarlo successivamente.
+                </span>
+              </label>
+
+              <button
+                type="submit"
+                class="primary-button"
+                [disabled]="salvataggio || !confermaSaldo">
+                <i class="pi pi-check"></i>
+                Conferma saldo iniziale
+              </button>
+
+            </form>
           </div>
 
-          <div class="account-row">
-            <span>Valuta</span>
-            <strong>{{ conto.valuta }}</strong>
+        </section>
+
+        <section class="overview-section">
+
+          <div class="section-title">
+            <h2>Panoramica finanziaria</h2>
+            <p>
+              Situazione aggiornata del tuo conto personale.
+            </p>
           </div>
 
-          <div class="account-row">
-            <span>Saldo iniziale</span>
+          <div class="summary-grid">
+
+            <p-card styleClass="summary-card">
+              <div class="summary-label">
+                <i class="pi pi-building-columns"></i>
+                <span>Saldo attuale</span>
+              </div>
+              <div class="summary-amount">
+                {{ formattaEuro(riepilogo.saldoConto) }}
+              </div>
+              <p>Saldo iniziale più entrate meno uscite</p>
+            </p-card>
+
+            <p-card styleClass="summary-card">
+              <div class="summary-label">
+                <i class="pi pi-arrow-down-left income"></i>
+                <span>Entrate</span>
+              </div>
+              <div class="summary-amount income">
+                {{ formattaEuro(riepilogo.entrate) }}
+              </div>
+              <p>Totale delle entrate registrate</p>
+            </p-card>
+
+            <p-card styleClass="summary-card">
+              <div class="summary-label">
+                <i class="pi pi-arrow-up-right expense"></i>
+                <span>Uscite</span>
+              </div>
+              <div class="summary-amount expense">
+                {{ formattaEuro(riepilogo.uscite) }}
+              </div>
+              <p>Totale delle uscite registrate</p>
+            </p-card>
+
+            <p-card styleClass="summary-card">
+              <div class="summary-label">
+                <i class="pi pi-wallet savings"></i>
+                <span>Salvadanai</span>
+              </div>
+              <div class="summary-amount savings">
+                {{ formattaEuro(riepilogo.totaleSalvadanai) }}
+              </div>
+              <p>Denaro riservato virtualmente</p>
+            </p-card>
+
+          </div>
+
+          <div class="available-card">
+            <div>
+              <h3>Disponibilità libera</h3>
+              <p>
+                Saldo attuale meno gli importi
+                riservati ai salvadanai.
+              </p>
+            </div>
             <strong>
-              {{ formattaEuro(conto.saldoIniziale) }}
+              {{ formattaEuro(riepilogo.disponibilitaLibera) }}
             </strong>
           </div>
 
-          <div class="account-row">
-            <span>Configurazione</span>
-            <span
-              class="status"
-              [class.status-ready]="conto.configurato">
-              {{
-                conto.configurato
-                  ? 'Saldo iniziale confermato'
-                  : 'Da completare'
-              }}
-            </span>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="movements-section">
-
-        <div class="section-heading-row">
+        <section class="account-section">
           <div class="section-title">
-            <h2>Movimenti</h2>
-            <p>
-              Registra e correggi le entrate e le uscite.
-            </p>
+            <h2>Il mio conto</h2>
+            <p>Informazioni sul conto personale.</p>
           </div>
 
-          <button
-            type="button"
-            class="primary-button"
-            [disabled]="!conto.configurato || salvataggio"
-            (click)="nuovoMovimento()">
-            <i class="pi pi-plus"></i>
-            Nuovo movimento
-          </button>
-        </div>
+          <div class="account-card">
+            <div class="account-row">
+              <span>Nome del conto</span>
+              <strong>{{ conto.nome }}</strong>
+            </div>
 
-        <div class="table-card">
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Descrizione</th>
-                  <th>Categoria</th>
-                  <th>Tipo</th>
-                  <th class="amount-column">Importo</th>
-                  <th>Azioni</th>
-                </tr>
-              </thead>
+            <div class="account-row">
+              <span>Valuta</span>
+              <strong>{{ conto.valuta }}</strong>
+            </div>
 
-              <tbody>
+            <div class="account-row">
+              <span>Saldo iniziale</span>
+              <strong>
+                {{ formattaEuro(conto.saldoIniziale) }}
+              </strong>
+            </div>
 
-                <tr *ngIf="movimentiAttivi.length === 0">
-                  <td colspan="6" class="empty-state">
-                    Nessun movimento registrato.
-                  </td>
-                </tr>
+            <div class="account-row">
+              <span>Configurazione</span>
+              <span
+                class="status"
+                [class.status-ready]="conto.configurato">
+                {{
+                  conto.configurato
+                    ? 'Saldo iniziale confermato'
+                    : 'Da completare'
+                }}
+              </span>
+            </div>
+          </div>
+        </section>
 
-                <tr *ngFor="let movimento of movimentiAttivi">
-                  <td>{{ movimento.dataMovimento }}</td>
-                  <td>
-                    <strong>{{ movimento.descrizione }}</strong>
-                    <small *ngIf="movimento.note">
-                      {{ movimento.note }}
-                    </small>
-                  </td>
-                  <td>{{ movimento.categoria || '—' }}</td>
-                  <td>
-                    <span
-                      class="type-badge"
-                      [class.type-income]="movimento.tipo === 'ENTRATA'"
-                      [class.type-expense]="movimento.tipo === 'USCITA'">
+      </ng-container>
+
+      <!-- SCHEDA MOVIMENTI -->
+
+      <ng-container *ngIf="schedaAttiva === 'movimenti'">
+
+        <section class="movements-section">
+
+          <div class="section-heading-row">
+            <div class="section-title">
+              <h2>Movimenti</h2>
+              <p>
+                Registra e correggi le entrate e le uscite.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="primary-button"
+              [disabled]="!conto.configurato || salvataggio"
+              (click)="nuovoMovimento()">
+              <i class="pi pi-plus"></i>
+              Nuovo movimento
+            </button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrizione</th>
+                    <th>Categoria</th>
+                    <th>Tipo</th>
+                    <th class="amount-column">Importo</th>
+                    <th>Azioni</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  <tr *ngIf="movimentiAttivi.length === 0">
+                    <td colspan="6" class="empty-state">
+                      Nessun movimento registrato.
+                    </td>
+                  </tr>
+
+                  <tr *ngFor="let movimento of movimentiAttivi">
+                    <td>{{ movimento.dataMovimento }}</td>
+                    <td>
+                      <strong>{{ movimento.descrizione }}</strong>
+                      <small *ngIf="movimento.note">
+                        {{ movimento.note }}
+                      </small>
+                    </td>
+                    <td>{{ movimento.categoria || '—' }}</td>
+                    <td>
+                      <span
+                        class="type-badge"
+                        [class.type-income]="movimento.tipo === 'ENTRATA'"
+                        [class.type-expense]="movimento.tipo === 'USCITA'">
+                        {{
+                          movimento.tipo === 'ENTRATA'
+                            ? 'Entrata'
+                            : 'Uscita'
+                        }}
+                      </span>
+                    </td>
+                    <td
+                      class="amount-column"
+                      [class.income]="movimento.tipo === 'ENTRATA'"
+                      [class.expense]="movimento.tipo === 'USCITA'">
                       {{
-                        movimento.tipo === 'ENTRATA'
-                          ? 'Entrata'
-                          : 'Uscita'
+                        movimento.tipo === 'ENTRATA' ? '+' : '−'
                       }}
-                    </span>
-                  </td>
-                  <td
-                    class="amount-column"
-                    [class.income]="movimento.tipo === 'ENTRATA'"
-                    [class.expense]="movimento.tipo === 'USCITA'">
-                    {{
-                      movimento.tipo === 'ENTRATA' ? '+' : '−'
-                    }}
-                    {{ formattaEuro(movimento.importo) }}
-                  </td>
-                  <td>
-                    <div class="row-actions">
-                      <button
-                        type="button"
-                        title="Modifica movimento"
-                        [disabled]="salvataggio"
-                        (click)="modificaMovimento(movimento)">
-                        <i class="pi pi-pencil"></i>
-                      </button>
+                      {{ formattaEuro(movimento.importo) }}
+                    </td>
+                    <td>
+                      <div class="row-actions">
+                        <button
+                          type="button"
+                          title="Modifica movimento"
+                          [disabled]="salvataggio"
+                          (click)="modificaMovimento(movimento)">
+                          <i class="pi pi-pencil"></i>
+                        </button>
 
-                      <button
-                        type="button"
-                        title="Annulla movimento"
-                        class="delete-button"
-                        [disabled]="salvataggio"
-                        (click)="annullaMovimento(movimento)">
-                        <i class="pi pi-trash"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        <button
+                          type="button"
+                          title="Annulla movimento"
+                          class="delete-button"
+                          [disabled]="salvataggio"
+                          (click)="annullaMovimento(movimento)">
+                          <i class="pi pi-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
 
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-
-        <div
-          *ngIf="movimentiAnnullati.length > 0"
-          class="cancelled-section">
-
-          <h3>Movimenti annullati</h3>
 
           <div
-            class="cancelled-item"
-            *ngFor="let movimento of movimentiAnnullati">
-            <span>
-              {{ movimento.dataMovimento }} —
-              {{ movimento.descrizione }}
-            </span>
-            <span>
-              {{ formattaEuro(movimento.importo) }}
-              <span class="cancelled-label">Annullato</span>
-            </span>
+            *ngIf="movimentiAnnullati.length > 0"
+            class="cancelled-section">
+
+            <h3>Movimenti annullati</h3>
+
+            <div
+              class="cancelled-item"
+              *ngFor="let movimento of movimentiAnnullati">
+              <span>
+                {{ movimento.dataMovimento }} —
+                {{ movimento.descrizione }}
+              </span>
+              <span>
+                {{ formattaEuro(movimento.importo) }}
+                <span class="cancelled-label">Annullato</span>
+              </span>
+            </div>
           </div>
-        </div>
 
-      </section>
+        </section>
 
-      <section class="next-section">
-        <div class="section-title">
-          <h2>Salvadanai virtuali</h2>
-          <p>
-            Il backend è già predisposto.
-            Nel prossimo passaggio realizzeremo
-            la gestione completa dei salvadanai.
-          </p>
-        </div>
-      </section>
+      </ng-container>
+
+      <!-- SCHEDA SALVADANAI: COMPONENTE COMPLETO -->
+
+      <ng-container *ngIf="schedaAttiva === 'salvadanai'">
+        <app-salvadanai></app-salvadanai>
+      </ng-container>
 
     </ng-container>
 
@@ -529,29 +616,6 @@
             class="field-error"
             *ngIf="descrizioneCtrl.invalid && descrizioneCtrl.touched">
             La descrizione è obbligatoria.
-          </small>
-        </div>
-
-        <div class="field full-width">
-          <label for="movimento-note">
-            Note *
-          </label>
-
-          <textarea
-            id="movimento-note"
-            name="note"
-            rows="3"
-            [(ngModel)]="modulo.note"
-            [disabled]="salvataggio"
-            #noteCtrl="ngModel"
-            placeholder="Inserisci una nota"
-            required>
-          </textarea>
-
-          <small
-            class="field-error"
-            *ngIf="noteCtrl.invalid && noteCtrl.touched">
-            Le note sono obbligatorie.
           </small>
         </div>
 

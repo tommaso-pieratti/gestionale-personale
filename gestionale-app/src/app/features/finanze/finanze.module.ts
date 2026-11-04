@@ -10,13 +10,13 @@ import { CalendarModule } from 'primeng/calendar';
 
 import { FinanzeRoutingModule } from './finanze-routing.module';
 
-import {
-  FinanzeHomeComponent
-} from './pages/finanze-home/finanze-home.component';
+import { FinanzeHomeComponent } from './pages/finanze-home/finanze-home.component';
+import { SalvadanaiComponent } from './pages/salvadanai/salvadanai.component';
 
 @NgModule({
   declarations: [
-    FinanzeHomeComponent
+    FinanzeHomeComponent,
+    SalvadanaiComponent
   ],
   imports: [
     CommonModule,
