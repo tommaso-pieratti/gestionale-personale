@@ -1,17 +1,33 @@
-<div class="p-4">
-  <p-card header="Gestionale Personale"
-          subheader="Benvenuto nel tuo gestionale">
 
-    <p>
-      Applicazione per la gestione personale
-      realizzata con Angular e PrimeNG.
-    </p>
+<div class="app-shell">
 
-    <p-button
-      label="Inizia"
-      icon="pi pi-check"
-      styleClass="p-button-primary">
-    </p-button>
+  <header class="app-toolbar">
+    <div class="toolbar-content">
 
-  </p-card>
+      <a class="brand" routerLink="/" aria-label="Vai alla dashboard">
+        <span class="brand-icon">
+          <i class="pi pi-wallet"></i>
+        </span>
+        <span class="brand-title">Gestionale Personale</span>
+      </a>
+
+      <span class="toolbar-description">
+        Il tuo spazio di gestione personale
+      </span>
+
+      <a
+        class="home-button"
+        routerLink="/"
+        title="Torna alla dashboard"
+        aria-label="Torna alla dashboard">
+        <i class="pi pi-home"></i>
+      </a>
+
+    </div>
+  </header>
+
+  <main class="app-main">
+    <router-outlet></router-outlet>
+  </main>
+
 </div>

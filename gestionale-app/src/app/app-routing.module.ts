@@ -1,10 +1,31 @@
+
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
-const routes: Routes = [];
+import { DashboardComponent } from './pages/dashboard/dashboard.component';
+
+const routes: Routes = [
+  {
+    path: '',
+    component: DashboardComponent,
+    pathMatch: 'full'
+  },
+  {
+    path: 'finanze',
+    loadChildren: () =>
+      import('./features/finanze/finanze.module')
+        .then(m => m.FinanzeModule)
+  },
+  {
+    path: '**',
+    redirectTo: ''
+  }
+];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  imports: [
+    RouterModule.forRoot(routes)
+  ],
   exports: [RouterModule]
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}

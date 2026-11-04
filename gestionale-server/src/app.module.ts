@@ -1,9 +1,11 @@
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { FinanzeModule } from './finanze/finanze.module';
 
 @Module({
   imports: [
@@ -16,7 +18,9 @@ import { AppService } from './app.service';
       useFactory: (configService: ConfigService) => ({
         type: 'mariadb',
         host: configService.getOrThrow<string>('DB_HOST'),
-        port: Number(configService.getOrThrow<string>('DB_PORT')),
+        port: Number(
+          configService.getOrThrow<string>('DB_PORT'),
+        ),
         username: configService.getOrThrow<string>('DB_USERNAME'),
         password: configService.getOrThrow<string>('DB_PASSWORD'),
         database: configService.getOrThrow<string>('DB_DATABASE'),
@@ -24,6 +28,8 @@ import { AppService } from './app.service';
         synchronize: false,
       }),
     }),
+
+    FinanzeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
