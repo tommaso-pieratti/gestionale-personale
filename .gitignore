@@ -86,7 +86,7 @@ dist
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
+# https://nextjs.org/blog/9-1#public-directory-support
 # public
 
 # vuepress build output
@@ -148,9 +148,12 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
-# Backup del database
-/gestionale-server/backups/
-/gestionale-server/backup_gestionale_prima_importazione.sql
+# ==========================================
+# BACKUP DATABASE - ESCLUSI DA GIT
+# ==========================================
 
-# Script SQL di importazione movimenti
-/gestionale-server/database/003_importazione_movimenti_2026.sql
+# Esclude tutti i backup del database
+/gestionale-server/backups/
+
+# Esclude eventuali backup SQL nella radice del backend
+/gestionale-server/backup*.sql
