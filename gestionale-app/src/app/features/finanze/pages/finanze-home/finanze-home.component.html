@@ -100,44 +100,6 @@
 
     </nav>
 
-    <!-- NOTIFICHE TEMPORANEE: 5 SECONDI -->
-
-    <div
-      class="toast-container"
-      aria-live="polite"
-      aria-atomic="false">
-
-      <div
-        *ngFor="let notifica of notifiche"
-        class="finance-toast"
-        [class.finance-toast-success]="notifica.tipo === 'successo'"
-        [class.finance-toast-error]="notifica.tipo === 'errore'"
-        [attr.role]="notifica.tipo === 'errore' ? 'alert' : 'status'">
-
-        <i
-          class="pi toast-status-icon"
-          [ngClass]="notifica.tipo === 'successo'
-            ? 'pi-check-circle'
-            : 'pi-times-circle'">
-        </i>
-
-        <div class="toast-text">
-          <strong>{{ notifica.titolo }}</strong>
-          <span>{{ notifica.testo }}</span>
-        </div>
-
-        <button
-          type="button"
-          class="toast-close"
-          aria-label="Chiudi notifica"
-          (click)="chiudiNotifica(notifica.id)">
-          <i class="pi pi-times"></i>
-        </button>
-
-      </div>
-
-    </div>
-
     <p
       *ngIf="caricamento && !riepilogo"
       class="loading">

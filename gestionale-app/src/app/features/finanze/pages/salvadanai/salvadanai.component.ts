@@ -1,4 +1,3 @@
-
 import { Component, OnInit } from '@angular/core';
 
 import {
@@ -8,6 +7,10 @@ import {
   RiepilogoSalvadanai,
   CreaSalvadanaio
 } from '../../services/salvadanai-api.service';
+
+import {
+  NotificheService
+} from '../../../../core/services/notifiche.service';
 
 type TipoDialogOperazione = 'ACCANTONAMENTO' | 'PRELIEVO';
 
@@ -25,9 +28,6 @@ export class SalvadanaiComponent implements OnInit {
   caricamento = false;
   salvataggio = false;
   caricamentoStorico = false;
-
-  errore = '';
-  messaggio = '';
 
   mostraDialogCreazione = false;
   mostraDialogOperazione = false;
@@ -49,7 +49,8 @@ export class SalvadanaiComponent implements OnInit {
   };
 
   constructor(
-    private salvadanaiApi: SalvadanaiApiService
+    private readonly salvadanaiApi: SalvadanaiApiService,
+    private readonly notificheService: NotificheService
   ) {}
 
   ngOnInit(): void {
@@ -58,7 +59,6 @@ export class SalvadanaiComponent implements OnInit {
 
   caricaDati(): void {
     this.caricamento = true;
-    this.errore = '';
 
     this.salvadanaiApi.getRiepilogo().subscribe({
       next: (riepilogo) => {
@@ -93,23 +93,27 @@ export class SalvadanaiComponent implements OnInit {
       dataObiettivo: ''
     };
 
-    this.errore = '';
     this.mostraDialogCreazione = true;
   }
 
   creaSalvadanaio(): void {
     const nome = this.nuovo.nome.trim();
+
     const obiettivo = this.normalizzaImporto(
       this.nuovo.obiettivo
     );
 
     if (!nome || !obiettivo) {
-      this.errore = 'Inserisci un nome e un obiettivo valido.';
+      this.notificheService.errore(
+        'Inserisci un nome e un obiettivo valido.'
+      );
       return;
     }
 
     if (this.inCentesimi(obiettivo) <= 0) {
-      this.errore = 'L’obiettivo deve essere maggiore di zero.';
+      this.notificheService.errore(
+        'L’obiettivo deve essere maggiore di zero.'
+      );
       return;
     }
 
@@ -129,13 +133,16 @@ export class SalvadanaiComponent implements OnInit {
     }
 
     this.salvataggio = true;
-    this.errore = '';
 
     this.salvadanaiApi.creaSalvadanaio(dati).subscribe({
       next: () => {
         this.salvataggio = false;
         this.mostraDialogCreazione = false;
-        this.messaggio = 'Salvadanaio creato correttamente.';
+
+        this.notificheService.successo(
+          'Salvadanaio creato correttamente.'
+        );
+
         this.caricaDati();
       },
       error: (errore) => {
@@ -157,7 +164,6 @@ export class SalvadanaiComponent implements OnInit {
       nota: ''
     };
 
-    this.errore = '';
     this.mostraDialogOperazione = true;
   }
 
@@ -171,7 +177,9 @@ export class SalvadanaiComponent implements OnInit {
     );
 
     if (!importo || this.inCentesimi(importo) <= 0) {
-      this.errore = 'Inserisci un importo maggiore di zero.';
+      this.notificheService.errore(
+        'Inserisci un importo maggiore di zero.'
+      );
       return;
     }
 
@@ -183,8 +191,9 @@ export class SalvadanaiComponent implements OnInit {
       );
 
       if (centesimi > disponibile) {
-        this.errore =
-          'L’importo supera la disponibilità libera.';
+        this.notificheService.errore(
+          'L’importo supera la disponibilità libera.'
+        );
         return;
       }
     } else {
@@ -193,8 +202,9 @@ export class SalvadanaiComponent implements OnInit {
       );
 
       if (centesimi > saldo) {
-        this.errore =
-          'Non puoi prelevare più del saldo accantonato.';
+        this.notificheService.errore(
+          'Non puoi prelevare più del saldo accantonato.'
+        );
         return;
       }
     }
@@ -202,23 +212,25 @@ export class SalvadanaiComponent implements OnInit {
     const id = this.salvadanaioSelezionato.id;
     const nota = this.moduloOperazione.nota.trim();
 
+    const tipo = this.tipoOperazione;
+
     const richiesta =
-      this.tipoOperazione === 'ACCANTONAMENTO'
+      tipo === 'ACCANTONAMENTO'
         ? this.salvadanaiApi.accantona(id, importo, nota)
         : this.salvadanaiApi.preleva(id, importo, nota);
 
     this.salvataggio = true;
-    this.errore = '';
 
     richiesta.subscribe({
       next: () => {
         this.salvataggio = false;
         this.mostraDialogOperazione = false;
 
-        this.messaggio =
-          this.tipoOperazione === 'ACCANTONAMENTO'
+        this.notificheService.successo(
+          tipo === 'ACCANTONAMENTO'
             ? 'Importo accantonato correttamente.'
-            : 'Prelievo effettuato correttamente.';
+            : 'Prelievo effettuato correttamente.'
+        );
 
         this.caricaDati();
       },
@@ -233,7 +245,6 @@ export class SalvadanaiComponent implements OnInit {
     this.salvadanaioSelezionato = salvadanaio;
     this.operazioni = [];
     this.caricamentoStorico = true;
-    this.errore = '';
     this.mostraDialogStorico = true;
 
     this.salvadanaiApi.getOperazioni(salvadanaio.id).subscribe({
@@ -268,9 +279,11 @@ export class SalvadanaiComponent implements OnInit {
     const saldo = Number(salvadanaio.saldo);
     const obiettivo = Number(salvadanaio.obiettivo);
 
-    if (!Number.isFinite(saldo) ||
-        !Number.isFinite(obiettivo) ||
-        obiettivo <= 0) {
+    if (
+      !Number.isFinite(saldo) ||
+      !Number.isFinite(obiettivo) ||
+      obiettivo <= 0
+    ) {
       return 0;
     }
 
@@ -333,6 +346,7 @@ export class SalvadanaiComponent implements OnInit {
     const parti = importo.replace(',', '.').split('.');
 
     const euro = Number(parti[0] || '0');
+
     const centesimi = Number(
       (parti[1] || '').padEnd(2, '0').slice(0, 2)
     );
@@ -340,13 +354,31 @@ export class SalvadanaiComponent implements OnInit {
     return euro * 100 + centesimi;
   }
 
-  private mostraErrore(errore: any): void {
-    const messaggio = errore?.error?.message;
+  private mostraErrore(errore: unknown): void {
+    let testo = 'Operazione non riuscita. Controlla il backend.';
 
-    this.errore = Array.isArray(messaggio)
-      ? messaggio.join(' ')
-      : typeof messaggio === 'string'
-        ? messaggio
-        : 'Operazione non riuscita. Controlla il backend.';
+    if (
+      errore !== null &&
+      typeof errore === 'object' &&
+      'error' in errore
+    ) {
+      const risposta = (
+        errore as {
+          error?: {
+            message?: string | string[];
+          };
+        }
+      ).error;
+
+      const messaggio = risposta?.message;
+
+      if (Array.isArray(messaggio)) {
+        testo = messaggio.join(' ');
+      } else if (typeof messaggio === 'string') {
+        testo = messaggio;
+      }
+    }
+
+    this.notificheService.errore(testo);
   }
 }

@@ -1,22 +1,16 @@
-
 <div class="salvadanai-page">
-
   <div class="page-content">
 
     <!-- INTESTAZIONE SALVADANAI -->
-
     <header class="page-heading">
       <div>
-
         <h1>
           <i class="pi pi-wallet"></i>
           I miei salvadanai
         </h1>
-
         <p>
           Organizza i tuoi risparmi e raggiungi i tuoi obiettivi.
         </p>
-
       </div>
 
       <button
@@ -27,63 +21,19 @@
         <i class="pi pi-plus"></i>
         Nuovo salvadanaio
       </button>
-
     </header>
 
-    <!-- MESSAGGI -->
-
-    <div
-      *ngIf="errore"
-      class="notice notice-error"
-      role="alert">
-
-      <i class="pi pi-exclamation-circle"></i>
-
-      <span>{{ errore }}</span>
-
-      <button
-        type="button"
-        aria-label="Chiudi errore"
-        (click)="errore = ''">
-        <i class="pi pi-times"></i>
-      </button>
-
-    </div>
-
-    <div
-      *ngIf="messaggio"
-      class="notice notice-success"
-      role="status">
-
-      <i class="pi pi-check-circle"></i>
-
-      <span>{{ messaggio }}</span>
-
-      <button
-        type="button"
-        aria-label="Chiudi messaggio"
-        (click)="messaggio = ''">
-        <i class="pi pi-times"></i>
-      </button>
-
-    </div>
-
     <!-- OBIETTIVI DI RISPARMIO -->
-
     <div class="section-heading">
-
       <div>
         <h2>Obiettivi di risparmio</h2>
-
         <p>
           Gestisci gli importi riservati ai tuoi progetti.
         </p>
       </div>
-
     </div>
 
     <!-- CARICAMENTO -->
-
     <p
       *ngIf="caricamento"
       class="loading">
@@ -91,7 +41,6 @@
     </p>
 
     <!-- NESSUN SALVADANAIO -->
-
     <div
       *ngIf="!caricamento && salvadanai.length === 0"
       class="empty-card">
@@ -112,16 +61,12 @@
         type="button"
         class="primary-button"
         (click)="apriCreazione()">
-
         <i class="pi pi-plus"></i>
         Crea il primo salvadanaio
-
       </button>
-
     </div>
 
     <!-- ELENCO SALVADANAI -->
-
     <div
       class="savings-grid"
       *ngIf="!caricamento">
@@ -131,31 +76,23 @@
         *ngFor="let salvadanaio of salvadanai">
 
         <!-- INTESTAZIONE CARD -->
-
         <div class="saving-card-header">
-
           <div class="saving-icon">
             <i class="pi pi-wallet"></i>
           </div>
 
           <div class="saving-title">
-
-            <h3>
-              {{ salvadanaio.nome }}
-            </h3>
+            <h3>{{ salvadanaio.nome }}</h3>
 
             <span
               *ngIf="!salvadanaio.attivo"
               class="inactive">
               Non attivo
             </span>
-
           </div>
-
         </div>
 
         <!-- DESCRIZIONE -->
-
         <p class="saving-description">
           {{
             salvadanaio.descrizione ||
@@ -164,39 +101,27 @@
         </p>
 
         <!-- IMPORTI -->
-
         <div class="saving-amounts">
-
           <div>
-
             <small>Accantonato</small>
-
             <strong>
               {{ formattaEuro(salvadanaio.saldo) }}
             </strong>
-
           </div>
 
           <div class="target-amount">
-
             <small>Obiettivo</small>
-
             <strong>
               {{ formattaEuro(salvadanaio.obiettivo) }}
             </strong>
-
           </div>
-
         </div>
 
         <!-- BARRA DI AVANZAMENTO -->
-
         <div
           class="progress-track"
           role="progressbar"
-          [attr.aria-label]="
-            'Avanzamento ' + salvadanaio.nome
-          "
+          [attr.aria-label]="'Avanzamento ' + salvadanaio.nome"
           [attr.aria-valuenow]="percentuale(salvadanaio)"
           aria-valuemin="0"
           aria-valuemax="100">
@@ -205,23 +130,17 @@
             class="progress-fill"
             [style.width.%]="percentuale(salvadanaio)">
           </div>
-
         </div>
 
         <div class="progress-caption">
-
           <span>Obiettivo raggiunto</span>
-
           <strong>
             {{ percentuale(salvadanaio) }}%
           </strong>
-
         </div>
 
         <!-- DATA OBIETTIVO -->
-
         <div class="saving-deadline">
-
           <i class="pi pi-calendar"></i>
 
           <span>
@@ -232,67 +151,44 @@
                 : 'Nessuna data obiettivo'
             }}
           </span>
-
         </div>
 
         <!-- ACCANTONA E PRELEVA -->
-
         <div class="saving-actions">
-
           <button
             type="button"
             class="deposit-button"
             [disabled]="!salvadanaio.attivo || salvataggio"
-            (click)="
-              apriOperazione(
-                salvadanaio,
-                'ACCANTONAMENTO'
-              )
-            ">
-
+            (click)="apriOperazione(salvadanaio, 'ACCANTONAMENTO')">
             <i class="pi pi-plus-circle"></i>
             Accantona
-
           </button>
 
           <button
             type="button"
             class="withdraw-button"
             [disabled]="!salvadanaio.attivo || salvataggio"
-            (click)="
-              apriOperazione(
-                salvadanaio,
-                'PRELIEVO'
-              )
-            ">
-
+            (click)="apriOperazione(salvadanaio, 'PRELIEVO')">
             <i class="pi pi-minus-circle"></i>
             Preleva
-
           </button>
-
         </div>
 
         <!-- STORICO -->
-
         <button
           type="button"
           class="history-button"
           (click)="apriStorico(salvadanaio)">
-
           <i class="pi pi-history"></i>
           Visualizza storico
-
         </button>
 
       </article>
-
     </div>
 
   </div>
 
   <!-- DIALOG CREAZIONE SALVADANAIO -->
-
   <p-dialog
     header="Nuovo salvadanaio"
     [(visible)]="mostraDialogCreazione"
@@ -308,14 +204,10 @@
     <form
       id="crea-salvadanaio-form"
       #creaForm="ngForm"
-      (ngSubmit)="
-        creaForm.valid && creaSalvadanaio()
-      ">
+      (ngSubmit)="creaForm.valid && creaSalvadanaio()">
 
       <div class="dialog-fields">
-
         <div class="field">
-
           <label for="saving-name">
             Nome *
           </label>
@@ -330,11 +222,9 @@
             [disabled]="salvataggio"
             required
           />
-
         </div>
 
         <div class="field">
-
           <label for="saving-description">
             Descrizione
           </label>
@@ -348,11 +238,9 @@
             [(ngModel)]="nuovo.descrizione"
             [disabled]="salvataggio">
           </textarea>
-
         </div>
 
         <div class="field">
-
           <label for="saving-target">
             Obiettivo (€) *
           </label>
@@ -368,11 +256,9 @@
             pattern="^[0-9]+([,.][0-9]{1,2})?$"
             required
           />
-
         </div>
 
         <div class="field">
-
           <label for="saving-date">
             Data obiettivo
           </label>
@@ -384,17 +270,12 @@
             [(ngModel)]="nuovo.dataObiettivo"
             [disabled]="salvataggio"
           />
-
         </div>
-
       </div>
-
     </form>
 
     <ng-template pTemplate="footer">
-
       <div class="dialog-actions">
-
         <button
           type="button"
           class="secondary-button"
@@ -408,20 +289,14 @@
           form="crea-salvadanaio-form"
           class="primary-button"
           [disabled]="salvataggio || !creaForm.valid">
-
           <i class="pi pi-check"></i>
           Crea salvadanaio
-
         </button>
-
       </div>
-
     </ng-template>
-
   </p-dialog>
 
   <!-- DIALOG ACCANTONAMENTO / PRELIEVO -->
-
   <p-dialog
     [(visible)]="mostraDialogOperazione"
     [modal]="true"
@@ -434,9 +309,7 @@
     styleClass="savings-dialog">
 
     <ng-template pTemplate="header">
-
       <div class="operation-heading">
-
         <i
           class="pi"
           [ngClass]="
@@ -453,9 +326,7 @@
               : 'Preleva denaro'
           }}
         </span>
-
       </div>
-
     </ng-template>
 
     <div
@@ -479,20 +350,15 @@
         Disponibilità libera:
         {{ formattaEuro(riepilogo.disponibilitaLibera) }}
       </p>
-
     </div>
 
     <form
       id="operazione-salvadanaio-form"
       #operazioneForm="ngForm"
-      (ngSubmit)="
-        operazioneForm.valid && salvaOperazione()
-      ">
+      (ngSubmit)="operazioneForm.valid && salvaOperazione()">
 
       <div class="dialog-fields">
-
         <div class="field">
-
           <label for="operation-amount">
             Importo (€) *
           </label>
@@ -508,11 +374,9 @@
             pattern="^[0-9]+([,.][0-9]{1,2})?$"
             required
           />
-
         </div>
 
         <div class="field">
-
           <label for="operation-note">
             Nota
           </label>
@@ -526,17 +390,12 @@
             [(ngModel)]="moduloOperazione.nota"
             [disabled]="salvataggio">
           </textarea>
-
         </div>
-
       </div>
-
     </form>
 
     <ng-template pTemplate="footer">
-
       <div class="dialog-actions">
-
         <button
           type="button"
           class="secondary-button"
@@ -549,9 +408,7 @@
           type="submit"
           form="operazione-salvadanaio-form"
           class="primary-button"
-          [disabled]="
-            salvataggio || !operazioneForm.valid
-          ">
+          [disabled]="salvataggio || !operazioneForm.valid">
 
           <i class="pi pi-check"></i>
 
@@ -560,17 +417,12 @@
               ? 'Conferma accantonamento'
               : 'Conferma prelievo'
           }}
-
         </button>
-
       </div>
-
     </ng-template>
-
   </p-dialog>
 
   <!-- DIALOG STORICO OPERAZIONI -->
-
   <p-dialog
     [(visible)]="mostraDialogStorico"
     [modal]="true"
@@ -608,7 +460,6 @@
         *ngFor="let operazione of operazioni">
 
         <div class="history-item-details">
-
           <strong>
             {{
               operazione.tipo === 'ACCANTONAMENTO'
@@ -624,7 +475,6 @@
           <p *ngIf="operazione.nota">
             {{ operazione.nota }}
           </p>
-
         </div>
 
         <strong
@@ -643,24 +493,19 @@
           }}
 
           {{ formattaEuro(operazione.importo) }}
-
         </strong>
 
       </div>
-
     </div>
 
     <ng-template pTemplate="footer">
-
       <button
         type="button"
         class="secondary-button"
         (click)="chiudiDialogStorico()">
         Chiudi
       </button>
-
     </ng-template>
-
   </p-dialog>
 
 </div>

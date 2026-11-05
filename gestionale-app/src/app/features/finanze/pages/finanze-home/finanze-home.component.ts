@@ -1,6 +1,5 @@
 import {
   Component,
-  OnDestroy,
   OnInit,
   ViewChild
 } from '@angular/core';
@@ -18,6 +17,10 @@ import {
   TipoMovimento
 } from '../../services/finanze-api.service';
 
+import {
+  NotificheService
+} from '../../../../core/services/notifiche.service';
+
 type SchedaFinanze = 'riepilogo' | 'movimenti' | 'salvadanai';
 
 interface ModuloMovimento {
@@ -34,7 +37,7 @@ interface ModuloMovimento {
   templateUrl: './finanze-home.component.html',
   styleUrls: ['./finanze-home.component.scss']
 })
-export class FinanzeHomeComponent implements OnInit, OnDestroy {
+export class FinanzeHomeComponent implements OnInit {
 
   @ViewChild('movimentoForm')
   movimentoForm?: NgForm;
@@ -54,16 +57,9 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
   errore = '';
   messaggio = '';
 
-  notifiche: {
-    id: number;
-    tipo: 'successo' | 'errore';
-    titolo: string;
-    testo: string;
-  }[] = [];
-
-  private prossimoIdNotifica = 0;
-  private timerNotifiche =
-    new Map<number, ReturnType<typeof setTimeout>>();
+  // Compatibilità con il vecchio contenitore HTML:
+  // le notifiche ora vengono mostrate soltanto da AppComponent.
+  readonly notifiche: never[] = [];
 
   saldoIniziale = '';
   confermaSaldo = false;
@@ -75,66 +71,25 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly finanzeApi: FinanzeApiService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly notificheService: NotificheService
   ) {}
 
   ngOnInit(): void {
     this.caricaDati();
   }
 
-  ngOnDestroy(): void {
-    this.timerNotifiche.forEach(timer => clearTimeout(timer));
-    this.timerNotifiche.clear();
-  }
-
-  private notifica(
-    tipo: 'successo' | 'errore',
-    testo: string
-  ): void {
-    const id = ++this.prossimoIdNotifica;
-
-    this.notifiche = [
-      ...this.notifiche,
-      {
-        id,
-        tipo,
-        testo,
-        titolo: tipo === 'successo'
-          ? 'Operazione riuscita'
-          : 'Errore'
-      }
-    ];
-
-    const timer = setTimeout(
-      () => this.chiudiNotifica(id),
-      5000
-    );
-
-    this.timerNotifiche.set(id, timer);
-  }
-
-  chiudiNotifica(id: number): void {
-    this.notifiche = this.notifiche.filter(
-      notifica => notifica.id !== id
-    );
-
-    const timer = this.timerNotifiche.get(id);
-
-    if (timer) {
-      clearTimeout(timer);
-    }
-
-    this.timerNotifiche.delete(id);
-  }
+  // Compatibilità con il vecchio template.
+  chiudiNotifica(_id: number): void {}
 
   private mostraErrore(testo: string): void {
     this.errore = '';
-    this.notifica('errore', testo);
+    this.notificheService.errore(testo);
   }
 
   private mostraSuccesso(testo: string): void {
     this.messaggio = '';
-    this.notifica('successo', testo);
+    this.notificheService.successo(testo);
   }
 
   cambiaScheda(scheda: SchedaFinanze): void {
@@ -408,7 +363,6 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
     this.messaggio = '';
     this.movimentoInModifica = null;
 
-    // Ripristina dati e validazione prima dell'apertura.
     this.ripristinaModuloMovimento(
       this.moduloVuoto()
     );
@@ -427,7 +381,6 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
     this.messaggio = '';
     this.movimentoInModifica = movimento.id;
 
-    // Anche la modifica parte con i controlli non toccati.
     this.ripristinaModuloMovimento({
       tipo: movimento.tipo,
       importo: movimento.importo,
@@ -444,7 +397,6 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
     this.mostraModuloMovimento = false;
     this.movimentoInModifica = null;
 
-    // Azzera completamente la validazione dopo la chiusura.
     this.ripristinaModuloMovimento(
       this.moduloVuoto()
     );

@@ -1,4 +1,3 @@
-
 <div class="app-shell">
 
   <header class="app-toolbar">
@@ -29,5 +28,40 @@
   <main class="app-main">
     <router-outlet></router-outlet>
   </main>
+
+</div>
+
+<!-- NOTIFICHE GLOBALI: IN BASSO AL CENTRO -->
+
+<div class="global-toast-container" aria-live="polite">
+
+  <div
+    *ngFor="let notifica of (notifiche$ | async)"
+    class="global-toast"
+    [class.global-toast-success]="notifica.tipo === 'successo'"
+    [class.global-toast-error]="notifica.tipo === 'errore'"
+    [attr.role]="notifica.tipo === 'errore' ? 'alert' : 'status'">
+
+    <i
+      class="pi global-toast-icon"
+      [ngClass]="notifica.tipo === 'successo'
+        ? 'pi-check-circle'
+        : 'pi-times-circle'">
+    </i>
+
+    <div class="global-toast-text">
+      <strong>{{ notifica.titolo }}</strong>
+      <span>{{ notifica.testo }}</span>
+    </div>
+
+    <button
+      type="button"
+      class="global-toast-close"
+      aria-label="Chiudi notifica"
+      (click)="chiudiNotifica(notifica.id)">
+      <i class="pi pi-times"></i>
+    </button>
+
+  </div>
 
 </div>
