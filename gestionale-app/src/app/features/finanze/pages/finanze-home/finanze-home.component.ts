@@ -1,7 +1,12 @@
-
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  ViewChild
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgForm } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
 import {
@@ -30,6 +35,9 @@ interface ModuloMovimento {
   styleUrls: ['./finanze-home.component.scss']
 })
 export class FinanzeHomeComponent implements OnInit, OnDestroy {
+
+  @ViewChild('movimentoForm')
+  movimentoForm?: NgForm;
 
   schedaAttiva: SchedaFinanze = 'riepilogo';
 
@@ -165,6 +173,26 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
       dataMovimento: this.dataOggi(),
       note: ''
     };
+  }
+
+  /**
+   * Ripristina i valori del modulo e azzera gli stati
+   * touched, dirty e submitted di Angular.
+   *
+   * Evita che i campi obbligatori risultino già rossi
+   * quando si apre un nuovo movimento.
+   */
+  private ripristinaModuloMovimento(
+    valori: ModuloMovimento
+  ): void {
+    this.modulo = { ...valori };
+
+    this.movimentoForm?.resetForm({
+      importo: valori.importo,
+      dataMovimento: valori.dataMovimento,
+      categoria: valori.categoria,
+      descrizione: valori.descrizione
+    });
   }
 
   private normalizzaImporto(
@@ -379,7 +407,12 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
     this.errore = '';
     this.messaggio = '';
     this.movimentoInModifica = null;
-    this.modulo = this.moduloVuoto();
+
+    // Ripristina dati e validazione prima dell'apertura.
+    this.ripristinaModuloMovimento(
+      this.moduloVuoto()
+    );
+
     this.mostraModuloMovimento = true;
   }
 
@@ -394,14 +427,15 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
     this.messaggio = '';
     this.movimentoInModifica = movimento.id;
 
-    this.modulo = {
+    // Anche la modifica parte con i controlli non toccati.
+    this.ripristinaModuloMovimento({
       tipo: movimento.tipo,
       importo: movimento.importo,
       descrizione: movimento.descrizione,
       categoria: movimento.categoria ?? '',
       dataMovimento: movimento.dataMovimento,
       note: movimento.note ?? ''
-    };
+    });
 
     this.mostraModuloMovimento = true;
   }
@@ -409,7 +443,11 @@ export class FinanzeHomeComponent implements OnInit, OnDestroy {
   chiudiModulo(): void {
     this.mostraModuloMovimento = false;
     this.movimentoInModifica = null;
-    this.modulo = this.moduloVuoto();
+
+    // Azzera completamente la validazione dopo la chiusura.
+    this.ripristinaModuloMovimento(
+      this.moduloVuoto()
+    );
   }
 
   salvaMovimento(): void {
