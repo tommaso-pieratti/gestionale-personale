@@ -147,3 +147,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Backup del database
+/gestionale-server/backups/
+/gestionale-server/backup_gestionale_prima_importazione.sql
+
+# Script SQL di importazione movimenti
+/gestionale-server/database/003_importazione_movimenti_2026.sql
