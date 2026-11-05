@@ -1,5 +1,5 @@
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
@@ -29,9 +29,8 @@ interface ModuloMovimento {
   templateUrl: './finanze-home.component.html',
   styleUrls: ['./finanze-home.component.scss']
 })
-export class FinanzeHomeComponent implements OnInit {
+export class FinanzeHomeComponent implements OnInit, OnDestroy {
 
-  // Scheda attualmente selezionata
   schedaAttiva: SchedaFinanze = 'riepilogo';
 
   conto: Conto | null = null;
@@ -46,6 +45,17 @@ export class FinanzeHomeComponent implements OnInit {
   salvataggio = false;
   errore = '';
   messaggio = '';
+
+  notifiche: {
+    id: number;
+    tipo: 'successo' | 'errore';
+    titolo: string;
+    testo: string;
+  }[] = [];
+
+  private prossimoIdNotifica = 0;
+  private timerNotifiche =
+    new Map<number, ReturnType<typeof setTimeout>>();
 
   saldoIniziale = '';
   confermaSaldo = false;
@@ -62,6 +72,61 @@ export class FinanzeHomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.caricaDati();
+  }
+
+  ngOnDestroy(): void {
+    this.timerNotifiche.forEach(timer => clearTimeout(timer));
+    this.timerNotifiche.clear();
+  }
+
+  private notifica(
+    tipo: 'successo' | 'errore',
+    testo: string
+  ): void {
+    const id = ++this.prossimoIdNotifica;
+
+    this.notifiche = [
+      ...this.notifiche,
+      {
+        id,
+        tipo,
+        testo,
+        titolo: tipo === 'successo'
+          ? 'Operazione riuscita'
+          : 'Errore'
+      }
+    ];
+
+    const timer = setTimeout(
+      () => this.chiudiNotifica(id),
+      5000
+    );
+
+    this.timerNotifiche.set(id, timer);
+  }
+
+  chiudiNotifica(id: number): void {
+    this.notifiche = this.notifiche.filter(
+      notifica => notifica.id !== id
+    );
+
+    const timer = this.timerNotifiche.get(id);
+
+    if (timer) {
+      clearTimeout(timer);
+    }
+
+    this.timerNotifiche.delete(id);
+  }
+
+  private mostraErrore(testo: string): void {
+    this.errore = '';
+    this.notifica('errore', testo);
+  }
+
+  private mostraSuccesso(testo: string): void {
+    this.messaggio = '';
+    this.notifica('successo', testo);
   }
 
   cambiaScheda(scheda: SchedaFinanze): void {
@@ -102,7 +167,9 @@ export class FinanzeHomeComponent implements OnInit {
     };
   }
 
-  private normalizzaImporto(valore: string): string | null {
+  private normalizzaImporto(
+    valore: string
+  ): string | null {
     const pulito = valore.trim().replace(',', '.');
 
     if (!/^\d{1,13}(\.\d{1,2})?$/.test(pulito)) {
@@ -152,13 +219,15 @@ export class FinanzeHomeComponent implements OnInit {
         this.caricamento = false;
       },
       error: errore => {
-        this.errore = this.erroreApi(errore);
+        this.mostraErrore(this.erroreApi(errore));
         this.caricamento = false;
       }
     });
   }
 
-  formattaEuro(valore: string | number | undefined): string {
+  formattaEuro(
+    valore: string | number | undefined
+  ): string {
     const numero = Number(valore ?? 0);
 
     return new Intl.NumberFormat('it-IT', {
@@ -174,26 +243,37 @@ export class FinanzeHomeComponent implements OnInit {
   }
 
   get movimentiFiltrati(): Movimento[] {
-    const ricerca = this.ricercaMovimento.trim().toLocaleLowerCase('it-IT');
+    const ricerca = this.ricercaMovimento
+      .trim()
+      .toLocaleLowerCase('it-IT');
 
     if (!ricerca) {
       return this.movimentiAttivi;
     }
 
-    return this.movimentiAttivi.filter(movimento =>
-      movimento.descrizione.toLocaleLowerCase('it-IT').includes(ricerca)
+    return this.movimentiAttivi.filter(
+      movimento =>
+        movimento.descrizione
+          .toLocaleLowerCase('it-IT')
+          .includes(ricerca)
     );
   }
 
   get totalePagineMovimenti(): number {
     return Math.max(
       1,
-      Math.ceil(this.movimentiFiltrati.length / this.movimentiPerPagina)
+      Math.ceil(
+        this.movimentiFiltrati.length /
+        this.movimentiPerPagina
+      )
     );
   }
 
   get movimentiPagina(): Movimento[] {
-    const inizio = (this.paginaMovimenti - 1) * this.movimentiPerPagina;
+    const inizio =
+      (this.paginaMovimenti - 1) *
+      this.movimentiPerPagina;
+
     return this.movimentiFiltrati.slice(
       inizio,
       inizio + this.movimentiPerPagina
@@ -204,10 +284,16 @@ export class FinanzeHomeComponent implements OnInit {
     this.paginaMovimenti = 1;
   }
 
-  cambiaPaginaMovimenti(direzione: -1 | 1): void {
-    const nuovaPagina = this.paginaMovimenti + direzione;
+  cambiaPaginaMovimenti(
+    direzione: -1 | 1
+  ): void {
+    const nuovaPagina =
+      this.paginaMovimenti + direzione;
 
-    if (nuovaPagina >= 1 && nuovaPagina <= this.totalePagineMovimenti) {
+    if (
+      nuovaPagina >= 1 &&
+      nuovaPagina <= this.totalePagineMovimenti
+    ) {
       this.paginaMovimenti = nuovaPagina;
     }
   }
@@ -230,19 +316,26 @@ export class FinanzeHomeComponent implements OnInit {
     this.messaggio = '';
 
     if (this.conto?.configurato) {
-      this.errore = 'Il saldo iniziale è già stato confermato.';
+      this.mostraErrore(
+        'Il saldo iniziale è già stato confermato.'
+      );
       return;
     }
 
-    const importo = this.normalizzaImporto(this.saldoIniziale);
+    const importo =
+      this.normalizzaImporto(this.saldoIniziale);
 
     if (importo === null) {
-      this.errore = 'Inserisci un importo valido, ad esempio 1500,00.';
+      this.mostraErrore(
+        'Inserisci un importo valido, ad esempio 1500,00.'
+      );
       return;
     }
 
     if (!this.confermaSaldo) {
-      this.errore = 'Devi confermare di aver verificato il saldo.';
+      this.mostraErrore(
+        'Devi confermare di aver verificato il saldo.'
+      );
       return;
     }
 
@@ -259,17 +352,25 @@ export class FinanzeHomeComponent implements OnInit {
 
     this.salvataggio = true;
 
-    this.finanzeApi.impostaSaldoIniziale(importo).subscribe({
+    this.finanzeApi.impostaSaldoIniziale(
+      importo
+    ).subscribe({
       next: () => {
         this.salvataggio = false;
         this.saldoIniziale = '';
         this.confermaSaldo = false;
-        this.messaggio = 'Saldo iniziale confermato definitivamente.';
+
+        this.mostraSuccesso(
+          'Saldo iniziale confermato definitivamente.'
+        );
+
         this.caricaDati();
       },
       error: errore => {
         this.salvataggio = false;
-        this.errore = this.erroreApi(errore);
+        this.mostraErrore(
+          this.erroreApi(errore)
+        );
       }
     });
   }
@@ -282,7 +383,9 @@ export class FinanzeHomeComponent implements OnInit {
     this.mostraModuloMovimento = true;
   }
 
-  modificaMovimento(movimento: Movimento): void {
+  modificaMovimento(
+    movimento: Movimento
+  ): void {
     if (movimento.annullatoIl) {
       return;
     }
@@ -314,24 +417,36 @@ export class FinanzeHomeComponent implements OnInit {
     this.messaggio = '';
 
     if (!this.conto?.configurato) {
-      this.errore = 'Configura prima il saldo iniziale.';
+      this.mostraErrore(
+        'Configura prima il saldo iniziale.'
+      );
       return;
     }
 
-    const importo = this.normalizzaImporto(this.modulo.importo);
+    const importo =
+      this.normalizzaImporto(this.modulo.importo);
 
-    if (importo === null || Number(importo) <= 0) {
-      this.errore = 'L’importo deve essere maggiore di zero.';
+    if (
+      importo === null ||
+      Number(importo) <= 0
+    ) {
+      this.mostraErrore(
+        'L’importo deve essere maggiore di zero.'
+      );
       return;
     }
 
     if (!this.modulo.descrizione.trim()) {
-      this.errore = 'La descrizione è obbligatoria.';
+      this.mostraErrore(
+        'La descrizione è obbligatoria.'
+      );
       return;
     }
 
     if (!this.modulo.dataMovimento) {
-      this.errore = 'Seleziona la data del movimento.';
+      this.mostraErrore(
+        'Seleziona la data del movimento.'
+      );
       return;
     }
 
@@ -344,7 +459,8 @@ export class FinanzeHomeComponent implements OnInit {
       note: this.modulo.note.trim()
     };
 
-    const modifica = this.movimentoInModifica !== null;
+    const modifica =
+      this.movimentoInModifica !== null;
 
     const richiesta = modifica
       ? this.finanzeApi.modificaMovimento(
@@ -359,19 +475,27 @@ export class FinanzeHomeComponent implements OnInit {
       next: () => {
         this.salvataggio = false;
         this.chiudiModulo();
-        this.messaggio = modifica
-          ? 'Movimento aggiornato correttamente.'
-          : 'Movimento registrato correttamente.';
+
+        this.mostraSuccesso(
+          modifica
+            ? 'Movimento aggiornato correttamente.'
+            : 'Movimento registrato correttamente.'
+        );
+
         this.caricaDati();
       },
       error: errore => {
         this.salvataggio = false;
-        this.errore = this.erroreApi(errore);
+        this.mostraErrore(
+          this.erroreApi(errore)
+        );
       }
     });
   }
 
-  annullaMovimento(movimento: Movimento): void {
+  annullaMovimento(
+    movimento: Movimento
+  ): void {
     if (movimento.annullatoIl) {
       return;
     }
@@ -391,15 +515,23 @@ export class FinanzeHomeComponent implements OnInit {
     this.messaggio = '';
     this.salvataggio = true;
 
-    this.finanzeApi.annullaMovimento(movimento.id).subscribe({
+    this.finanzeApi.annullaMovimento(
+      movimento.id
+    ).subscribe({
       next: () => {
         this.salvataggio = false;
-        this.messaggio = 'Movimento annullato correttamente.';
+
+        this.mostraSuccesso(
+          'Movimento annullato correttamente.'
+        );
+
         this.caricaDati();
       },
       error: errore => {
         this.salvataggio = false;
-        this.errore = this.erroreApi(errore);
+        this.mostraErrore(
+          this.erroreApi(errore)
+        );
       }
     });
   }
