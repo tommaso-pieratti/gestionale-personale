@@ -38,6 +38,10 @@ export class FinanzeHomeComponent implements OnInit {
   riepilogo: RiepilogoFinanze | null = null;
   movimenti: Movimento[] = [];
 
+  ricercaMovimento = '';
+  paginaMovimenti = 1;
+  readonly movimentiPerPagina = 5;
+
   caricamento = false;
   salvataggio = false;
   errore = '';
@@ -144,6 +148,7 @@ export class FinanzeHomeComponent implements OnInit {
         this.conto = conto;
         this.riepilogo = riepilogo;
         this.movimenti = movimenti;
+        this.correggiPaginaMovimenti();
         this.caricamento = false;
       },
       error: errore => {
@@ -165,6 +170,52 @@ export class FinanzeHomeComponent implements OnInit {
   get movimentiAttivi(): Movimento[] {
     return this.movimenti.filter(
       movimento => !movimento.annullatoIl
+    );
+  }
+
+  get movimentiFiltrati(): Movimento[] {
+    const ricerca = this.ricercaMovimento.trim().toLocaleLowerCase('it-IT');
+
+    if (!ricerca) {
+      return this.movimentiAttivi;
+    }
+
+    return this.movimentiAttivi.filter(movimento =>
+      movimento.descrizione.toLocaleLowerCase('it-IT').includes(ricerca)
+    );
+  }
+
+  get totalePagineMovimenti(): number {
+    return Math.max(
+      1,
+      Math.ceil(this.movimentiFiltrati.length / this.movimentiPerPagina)
+    );
+  }
+
+  get movimentiPagina(): Movimento[] {
+    const inizio = (this.paginaMovimenti - 1) * this.movimentiPerPagina;
+    return this.movimentiFiltrati.slice(
+      inizio,
+      inizio + this.movimentiPerPagina
+    );
+  }
+
+  cercaMovimenti(): void {
+    this.paginaMovimenti = 1;
+  }
+
+  cambiaPaginaMovimenti(direzione: -1 | 1): void {
+    const nuovaPagina = this.paginaMovimenti + direzione;
+
+    if (nuovaPagina >= 1 && nuovaPagina <= this.totalePagineMovimenti) {
+      this.paginaMovimenti = nuovaPagina;
+    }
+  }
+
+  private correggiPaginaMovimenti(): void {
+    this.paginaMovimenti = Math.min(
+      Math.max(this.paginaMovimenti, 1),
+      this.totalePagineMovimenti
     );
   }
 
