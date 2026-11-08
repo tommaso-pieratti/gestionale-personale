@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FinanzeModule } from './finanze/finanze.module';
+import { CarburanteModule } from './carburante/carburante.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { FinanzeModule } from './finanze/finanze.module';
     }),
 
     FinanzeModule,
+    CarburanteModule,
   ],
   controllers: [AppController],
   providers: [AppService],

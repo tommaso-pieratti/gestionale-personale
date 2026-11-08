@@ -10,6 +10,7 @@
 
   <section class="modules-grid">
 
+    <!-- MODULO FINANZE -->
     <p-card styleClass="module-card">
 
       <ng-template pTemplate="header">
@@ -34,6 +35,32 @@
 
     </p-card>
 
+    <!-- MODULO CARBURANTE -->
+    <p-card styleClass="module-card">
+
+      <ng-template pTemplate="header">
+        <div class="module-banner">
+          <i class="pi pi-car"></i>
+        </div>
+      </ng-template>
+
+      <h2>Carburante</h2>
+
+      <p>
+        Gestisci le tue auto, registra i rifornimenti
+        e consulta il totale delle spese e dei litri.
+      </p>
+
+      <p-button
+        label="Apri Carburante"
+        icon="pi pi-arrow-right"
+        iconPos="right"
+        (onClick)="apriCarburante()">
+      </p-button>
+
+    </p-card>
+
+    <!-- MODULI FUTURI -->
     <p-card styleClass="module-card">
 
       <ng-template pTemplate="header">

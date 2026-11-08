@@ -1,0 +1,586 @@
+
+<div class="carburante-page">
+  <div class="page-header">
+    <h1>Carburante</h1>
+    <p>Gestione delle auto e dei rifornimenti</p>
+  </div>
+
+  <div class="schede">
+    <button
+      type="button"
+      [class.attiva]="scheda === 'riepilogo'"
+      (click)="cambiaScheda('riepilogo')"
+    >
+      Riepilogo
+    </button>
+
+    <button
+      type="button"
+      [class.attiva]="scheda === 'rifornimenti'"
+      (click)="cambiaScheda('rifornimenti')"
+    >
+      Rifornimenti
+    </button>
+
+    <button
+      type="button"
+      [class.attiva]="scheda === 'auto'"
+      (click)="cambiaScheda('auto')"
+    >
+      Auto
+    </button>
+  </div>
+
+  <!-- RIEPILOGO -->
+  <section *ngIf="scheda === 'riepilogo'">
+    <div class="riepilogo-intestazione">
+      <div>
+        <h2>Panoramica carburante</h2>
+        <p>Consulta le spese, i litri e il prezzo medio dei rifornimenti.</p>
+      </div>
+    </div>
+
+    <div class="riepilogo-filtri" aria-label="Filtri riepilogo carburante">
+      <div class="filtro-campo">
+        <label for="filtro-anno">Anno</label>
+        <p-dropdown
+          inputId="filtro-anno"
+          [options]="opzioniAnni"
+          [(ngModel)]="filtroAnno"
+          [style]="{ width: '100%' }"
+          placeholder="Tutti gli anni"
+        ></p-dropdown>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="filtro-auto">Automobile</label>
+        <select
+          id="filtro-auto"
+          class="selettore-auto"
+          [(ngModel)]="filtroAutoId"
+          aria-label="Filtra per automobile"
+        >
+          <option [ngValue]="null">Tutte le auto</option>
+          <option *ngFor="let a of auto" [ngValue]="a.id">
+            {{ a.targa?.trim() || a.nome }}
+          </option>
+        </select>
+      </div>
+
+      <button
+        type="button"
+        class="azzera-filtri"
+        [disabled]="filtroAnno === null && filtroAutoId === null"
+        (click)="azzeraFiltriRiepilogo()"
+      >
+        <i class="pi pi-filter-slash" aria-hidden="true"></i>
+        Azzera filtri
+      </button>
+    </div>
+
+    <div class="riepilogo-grid">
+      <p-card>
+        <div class="riepilogo-label">
+          <i class="pi pi-wallet" aria-hidden="true"></i>
+          Totale speso
+        </div>
+        <div class="riepilogo-valore">
+          {{ totaleSpesoFiltrato | number:'1.2-2':'it' }} €
+        </div>
+        <p class="riepilogo-dettaglio">Spesa dei rifornimenti selezionati</p>
+      </p-card>
+
+      <p-card>
+        <div class="riepilogo-label">
+          <i class="pi pi-chart-bar" aria-hidden="true"></i>
+          Totale litri
+        </div>
+        <div class="riepilogo-valore">
+          {{ totaleLitriFiltrato | number:'1.3-3':'it' }} L
+        </div>
+        <p class="riepilogo-dettaglio">Litri dei rifornimenti selezionati</p>
+      </p-card>
+
+      <p-card>
+        <div class="riepilogo-label">
+          <i class="pi pi-percentage" aria-hidden="true"></i>
+          Media €/L
+        </div>
+        <div class="riepilogo-valore">
+          {{ mediaEuroLitro !== null
+              ? (mediaEuroLitro | number:'1.3-3':'it') + ' €/L'
+              : '—' }}
+        </div>
+        <p class="riepilogo-dettaglio">Media ponderata sul totale dei litri</p>
+      </p-card>
+    </div>
+
+    <p class="riepilogo-risultati">
+      {{ rifornimentiRiepilogo.length }}
+      {{ rifornimentiRiepilogo.length === 1 ? 'rifornimento' : 'rifornimenti' }}
+      {{ filtroAnno !== null || filtroAutoId !== null ? 'nei filtri selezionati' : 'registrati in totale' }}.
+    </p>
+  </section>
+
+  <!-- RIFORNIMENTI -->
+  <section *ngIf="scheda === 'rifornimenti'">
+    <div class="section-header">
+      <h2>Rifornimenti</h2>
+      <p-button
+        label="Nuovo rifornimento"
+        icon="pi pi-plus"
+        (onClick)="nuovoRifornimento()"
+      ></p-button>
+    </div>
+
+    <p-table
+      [value]="rifornimentiPagina"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm p-datatable-striped"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Data</th>
+          <th>Auto</th>
+          <th>Importo</th>
+          <th>Litri</th>
+          <th>€/L</th>
+          <th>Tipo</th>
+          <th>KM</th>
+          <th>Distributore</th>
+          <th>Azioni</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-r>
+        <tr>
+          <td>{{ r.dataRifornimento | date:'dd/MM/yyyy' }}</td>
+          <td>{{ r.auto?.targa?.trim() || r.auto?.nome || '—' }}</td>
+          <td>{{ +r.importo | number:'1.2-2':'it' }} €</td>
+          <td>{{ +r.litri | number:'1.2-2':'it' }}</td>
+          <td>
+            {{ +r.prezzoAlLitro | number:'1.3-3':'it' }}
+          </td>
+          <td>
+            {{
+              r.tipoRifornimento === 'PIENO'
+                ? 'Pieno'
+                : r.tipoRifornimento === 'PARZIALE'
+                  ? 'Parziale'
+                  : '—'
+            }}
+          </td>
+          <td>
+            {{
+              r.kmAttuali !== null
+                ? (r.kmAttuali | number:'1.0-0':'it')
+                : '—'
+            }}
+          </td>
+          <td>{{ r.distributore || '—' }}</td>
+          <td>
+            <div class="azioni">
+              <p-button
+                icon="pi pi-pencil"
+                styleClass="p-button-text p-button-sm"
+                ariaLabel="Modifica rifornimento"
+                (onClick)="modificaRifornimento(r)"
+              ></p-button>
+
+              <p-button
+                icon="pi pi-trash"
+                styleClass="p-button-text p-button-danger p-button-sm"
+                ariaLabel="Elimina rifornimento"
+                (onClick)="chiediEliminaRifornimento(r)"
+              ></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="9" class="vuoto">
+            Nessun rifornimento registrato.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    <nav *ngIf="rifornimenti.length > 0" class="paginazione-rifornimenti" aria-label="Pagine dei rifornimenti">
+      <button type="button" class="paginazione-freccia"
+        [disabled]="paginaRifornimenti === 1"
+        (click)="vaiAPaginaRifornimenti(paginaRifornimenti - 1)">
+        <i class="pi pi-chevron-left" aria-hidden="true"></i> Indietro
+      </button>
+
+      <div class="paginazione-centro">
+        <span class="paginazione-pagina">Pagina {{ paginaRifornimenti }} di {{ totalePagineRifornimenti }}</span>
+        <span class="paginazione-contatore">Movimenti {{ primoMovimento }}–{{ ultimoMovimento }} di {{ rifornimenti.length }}</span>
+      </div>
+
+      <button type="button" class="paginazione-freccia"
+        [disabled]="paginaRifornimenti === totalePagineRifornimenti"
+        (click)="vaiAPaginaRifornimenti(paginaRifornimenti + 1)">
+        Avanti <i class="pi pi-chevron-right" aria-hidden="true"></i>
+      </button>
+    </nav>
+  </section>
+
+  <!-- AUTO -->
+  <section *ngIf="scheda === 'auto'">
+    <div class="section-header">
+      <h2>Auto</h2>
+      <p-button
+        label="Nuova auto"
+        icon="pi pi-plus"
+        (onClick)="nuovaAuto()"
+      ></p-button>
+    </div>
+
+    <p-table
+      [value]="auto"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm p-datatable-striped"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nome</th>
+          <th>Marca</th>
+          <th>Modello</th>
+          <th>Targa</th>
+          <th>Alimentazione</th>
+          <th>Azioni</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-a>
+        <tr>
+          <td>{{ a.nome }}</td>
+          <td>{{ a.marca || '—' }}</td>
+          <td>{{ a.modello || '—' }}</td>
+          <td>{{ a.targa || '—' }}</td>
+          <td>{{ a.alimentazione || '—' }}</td>
+          <td>
+            <div class="azioni">
+              <p-button
+                icon="pi pi-pencil"
+                styleClass="p-button-text p-button-sm"
+                ariaLabel="Modifica auto"
+                (onClick)="modificaAuto(a)"
+              ></p-button>
+
+              <p-button
+                icon="pi pi-trash"
+                styleClass="p-button-text p-button-danger p-button-sm"
+                ariaLabel="Elimina auto"
+                (onClick)="chiediEliminaAuto(a)"
+              ></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6" class="vuoto">
+            Nessuna auto registrata.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</div>
+
+<!-- DIALOG AUTO -->
+<p-dialog
+  [header]="idAutoModifica === null ? 'Nuova auto' : 'Modifica auto'"
+  [(visible)]="dialogAuto"
+  [modal]="true"
+  [style]="{ width: 'min(95vw, 520px)' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="form-grid">
+    <div class="campo">
+      <label for="auto-nome">Nome *</label>
+      <input
+        id="auto-nome"
+        pInputText
+        [(ngModel)]="formAuto.nome"
+        maxlength="100"
+      />
+    </div>
+
+    <div class="campo">
+      <label for="auto-marca">Marca</label>
+      <input
+        id="auto-marca"
+        pInputText
+        [(ngModel)]="formAuto.marca"
+        maxlength="100"
+      />
+    </div>
+
+    <div class="campo">
+      <label for="auto-modello">Modello</label>
+      <input
+        id="auto-modello"
+        pInputText
+        [(ngModel)]="formAuto.modello"
+        maxlength="100"
+      />
+    </div>
+
+    <div class="campo">
+      <label for="auto-targa">Targa</label>
+      <input
+        id="auto-targa"
+        pInputText
+        [(ngModel)]="formAuto.targa"
+        maxlength="20"
+      />
+    </div>
+
+    <div class="campo">
+      <label for="auto-alimentazione">Alimentazione</label>
+      <input
+        id="auto-alimentazione"
+        pInputText
+        [(ngModel)]="formAuto.alimentazione"
+        maxlength="50"
+      />
+    </div>
+
+    <div class="campo">
+      <label for="auto-note">Note</label>
+      <textarea
+        id="auto-note"
+        rows="3"
+        [(ngModel)]="formAuto.note"
+      ></textarea>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Salva"
+      icon="pi pi-check"
+      [disabled]="salvataggio || !autoValida"
+      (onClick)="salvaAuto()"
+    ></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- DIALOG RIFORNIMENTO -->
+<p-dialog
+  [header]="idRifornimentoModifica === null
+    ? 'Nuovo rifornimento'
+    : 'Modifica rifornimento'"
+  [(visible)]="dialogRifornimento"
+  [modal]="true"
+  [style]="{ width: 'min(95vw, 560px)' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="form-grid">
+    <div class="campo">
+      <label for="rif-data">Data rifornimento *</label>
+      <div class="data-rifornimento-control">
+        <input
+          id="rif-data"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="10"
+          [value]="testoDataRifornimento"
+          [placeholder]="dataOggiPlaceholder"
+          (input)="cambiaTestoData($event)"
+          aria-label="Data rifornimento nel formato giorno mese anno"
+        />
+        <p-calendar
+          inputId="rif-data-calendario"
+          appendTo="body"
+          [baseZIndex]="12000"
+          [ngModel]="formRifornimento.data"
+          (onSelect)="selezionaDataCalendario($event)"
+          dateFormat="dd/mm/yy"
+          [showIcon]="true"
+          [showOnFocus]="false"
+          [readonlyInput]="true"
+          [showTime]="false"
+          styleClass="calendario-solo-pulsante"
+        ></p-calendar>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="rif-auto">Auto *</label>
+      <select
+        id="rif-auto"
+        class="selettore-auto"
+        [(ngModel)]="formRifornimento.autoId"
+        aria-label="Seleziona automobile per il rifornimento"
+      >
+        <option [ngValue]="null" disabled>Seleziona auto</option>
+        <option *ngFor="let a of auto" [ngValue]="a.id">
+          {{ a.targa?.trim() || a.nome }}
+        </option>
+      </select>
+    </div>
+
+    <div class="form-due-colonne">
+      <div class="campo">
+        <label for="rif-importo">Importo (€) *</label>
+        <p-inputNumber
+          inputId="rif-importo"
+          [(ngModel)]="formRifornimento.importo"
+          mode="decimal"
+          locale="it-IT"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [min]="0.01"
+          [style]="{ width: '100%' }"
+        ></p-inputNumber>
+      </div>
+
+      <div class="campo">
+        <label for="rif-prezzo">Prezzo (€/L) *</label>
+        <p-inputNumber
+          inputId="rif-prezzo"
+          [(ngModel)]="formRifornimento.prezzoUnitario"
+          mode="decimal"
+          locale="it-IT"
+          [minFractionDigits]="3"
+          [maxFractionDigits]="4"
+          [min]="0.0001"
+          [style]="{ width: '100%' }"
+          [inputStyle]="{ width: '100%' }"
+        ></p-inputNumber>
+      </div>
+    </div>
+
+    <div class="prezzo-calcolato" aria-live="polite">
+      Litri erogati:
+      <strong>
+        {{ litriCalcolati !== null
+          ? (litriCalcolati | number:'1.2-2':'it') + ' L'
+          : '—' }}
+      </strong>
+    </div>
+
+    <div class="campo">
+      <label for="rif-tipo">Tipo rifornimento</label>
+      <p-dropdown
+        inputId="rif-tipo"
+        appendTo="body"
+        [autoZIndex]="true"
+        [baseZIndex]="12000"
+        [options]="tipiRifornimento"
+        [(ngModel)]="formRifornimento.tipoRifornimento"
+        placeholder="Non specificato"
+        [showClear]="true"
+        [style]="{ width: '100%' }"
+      ></p-dropdown>
+    </div>
+
+    <div class="campo">
+      <label for="rif-km">KM attuali al rifornimento</label>
+      <p-inputNumber
+        inputId="rif-km"
+        [(ngModel)]="formRifornimento.kmAttuali"
+        locale="it-IT"
+        [min]="0"
+        [maxFractionDigits]="0"
+        [useGrouping]="false"
+        [style]="{ width: '100%' }"
+      ></p-inputNumber>
+    </div>
+
+    <div class="campo">
+      <label for="rif-distributore">Distributore</label>
+      <input
+        id="rif-distributore"
+        pInputText
+        [(ngModel)]="formRifornimento.distributore"
+        maxlength="150"
+        placeholder="Facoltativo"
+      />
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Salva"
+      icon="pi pi-check"
+      [disabled]="salvataggio || !rifornimentoValido"
+      (onClick)="salvaRifornimento()"
+    ></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- CONFERMA ELIMINAZIONE AUTO -->
+<p-dialog
+  header="Elimina auto"
+  [visible]="autoDaEliminare !== null"
+  (visibleChange)="!$event && (autoDaEliminare = null)"
+  [modal]="true"
+  [style]="{ width: 'min(95vw, 440px)' }"
+>
+  <p>
+    Vuoi eliminare l'auto
+    <strong>{{ autoDaEliminare?.nome }}</strong>?
+  </p>
+
+  <p>
+    Se sono presenti rifornimenti associati, l'eliminazione
+    verrà bloccata.
+  </p>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Annulla"
+      styleClass="p-button-text"
+      (onClick)="autoDaEliminare = null"
+    ></p-button>
+
+    <p-button
+      label="Elimina"
+      styleClass="p-button-danger"
+      [disabled]="salvataggio"
+      (onClick)="confermaEliminaAuto()"
+    ></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- CONFERMA ELIMINAZIONE RIFORNIMENTO -->
+<p-dialog
+  header="Elimina rifornimento"
+  [visible]="rifornimentoDaEliminare !== null"
+  (visibleChange)="!$event && (rifornimentoDaEliminare = null)"
+  [modal]="true"
+  [style]="{ width: 'min(95vw, 440px)' }"
+>
+  <p>
+    Vuoi eliminare definitivamente questo rifornimento?
+  </p>
+
+  <p>
+    L'importo e i litri verranno rimossi dal riepilogo.
+  </p>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Annulla"
+      styleClass="p-button-text"
+      (onClick)="rifornimentoDaEliminare = null"
+    ></p-button>
+
+    <p-button
+      label="Elimina"
+      styleClass="p-button-danger"
+      [disabled]="salvataggio"
+      (onClick)="confermaEliminaRifornimento()"
+    ></p-button>
+  </ng-template>
+</p-dialog>

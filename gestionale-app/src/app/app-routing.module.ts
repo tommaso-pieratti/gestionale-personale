@@ -8,24 +8,32 @@ const routes: Routes = [
   {
     path: '',
     component: DashboardComponent,
-    pathMatch: 'full'
+    pathMatch: 'full',
   },
   {
     path: 'finanze',
     loadChildren: () =>
       import('./features/finanze/finanze.module')
-        .then(m => m.FinanzeModule)
+        .then(m => m.FinanzeModule),
+  },
+  {
+    path: 'carburante',
+    loadChildren: () =>
+      import('./features/carburante/carburante.module')
+        .then(m => m.CarburanteModule),
   },
   {
     path: '**',
-    redirectTo: ''
-  }
+    redirectTo: '',
+  },
 ];
 
 @NgModule({
   imports: [
-    RouterModule.forRoot(routes)
+    RouterModule.forRoot(routes),
   ],
-  exports: [RouterModule]
+  exports: [
+    RouterModule,
+  ],
 })
 export class AppRoutingModule {}

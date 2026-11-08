@@ -15,4 +15,8 @@ export class DashboardComponent {
     this.router.navigate(['/finanze']);
   }
 
+  apriCarburante(): void {
+    this.router.navigate(['/carburante']);
+  }
+
 }
