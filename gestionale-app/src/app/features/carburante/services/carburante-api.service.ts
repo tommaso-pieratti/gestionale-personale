@@ -16,7 +16,7 @@ import {
 })
 export class CarburanteApiService {
   private readonly apiUrl =
-    'http://localhost:3000/api/carburante';
+    '/api/carburante';
 
   constructor(private readonly http: HttpClient) {}
 

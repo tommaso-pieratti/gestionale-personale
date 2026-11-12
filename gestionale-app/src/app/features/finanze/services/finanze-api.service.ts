@@ -57,7 +57,7 @@ export interface MovimentoPayload {
 })
 export class FinanzeApiService {
   private readonly baseUrl =
-    'http://localhost:3000/api/finanze';
+    '/api/finanze';
 
   constructor(private http: HttpClient) {}
 

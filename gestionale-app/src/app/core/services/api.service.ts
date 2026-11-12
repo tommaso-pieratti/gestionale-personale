@@ -14,7 +14,7 @@ export interface ApiStatus {
 })
 export class ApiService {
 
-  private readonly apiUrl = 'http://localhost:3000/api';
+  private readonly apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
 
