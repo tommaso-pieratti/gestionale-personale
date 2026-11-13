@@ -149,11 +149,9 @@ vite.config.ts.timestamp-*
 .turbo
 
 # ==========================================
-# BACKUP DATABASE - ESCLUSI DA GIT
+# BACKUP DATABASE
 # ==========================================
 
-# Esclude tutti i backup del database
-/gestionale-server/backups/
-
+# Consente di versionare gestionale-server/backups/backup.sql
 # Esclude eventuali backup SQL nella radice del backend
 /gestionale-server/backup*.sql
