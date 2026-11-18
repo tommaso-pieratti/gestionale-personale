@@ -23,6 +23,12 @@ const routes: Routes = [
         .then(m => m.CarburanteModule),
   },
   {
+    path: 'lavoro-at',
+    loadChildren: () =>
+      import('./features/lavoro-at/lavoro-at.module')
+        .then(m => m.LavoroAtModule),
+  },
+  {
     path: '**',
     redirectTo: '',
   },

@@ -19,4 +19,8 @@ export class DashboardComponent {
     this.router.navigate(['/carburante']);
   }
 
+  apriLavoroAt(): void {
+    this.router.navigate(['/lavoro-at']);
+  }
+
 }
