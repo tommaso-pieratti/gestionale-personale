@@ -29,6 +29,10 @@ const routes: Routes = [
         .then(m => m.LavoroAtModule),
   },
   {
+    path: 'archivio-documenti',
+    loadChildren: () => import('./features/archivio-documenti/archivio-documenti.module').then(m => m.ArchivioDocumentiModule),
+  },
+  {
     path: '**',
     redirectTo: '',
   },

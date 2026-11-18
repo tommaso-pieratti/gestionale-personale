@@ -23,4 +23,7 @@ export class DashboardComponent {
     this.router.navigate(['/lavoro-at']);
   }
 
+  apriArchivioDocumenti(): void {
+    this.router.navigate(['/archivio-documenti']);
+  }
 }

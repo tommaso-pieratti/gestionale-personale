@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -7,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FinanzeModule } from './finanze/finanze.module';
 import { CarburanteModule } from './carburante/carburante.module';
+import { ArchivioDocumentiModule } from './archivio-documenti/archivio-documenti.module';
 
 @Module({
   imports: [
@@ -32,6 +32,7 @@ import { CarburanteModule } from './carburante/carburante.module';
 
     FinanzeModule,
     CarburanteModule,
+    ArchivioDocumentiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
