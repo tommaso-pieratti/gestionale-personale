@@ -1,35 +1,70 @@
 
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit
+} from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  DomSanitizer,
+  SafeResourceUrl
+} from '@angular/platform-browser';
+import { firstValueFrom } from 'rxjs';
+
 import {
   ArchivioApiService,
-  ArchivioDocumento
+  ArchivioDocumento,
+  ArchivioCartella,
+  CategoriaArchivio
 } from './services/archivio-api.service';
 
-type FiltroDocumenti = 'tutti' | 'immagini' | 'pdf';
-type VistaDocumenti = 'griglia' | 'lista';
+interface CartellaLocale {
+  id: string;
+  nome: string;
+  categoria: CategoriaArchivio;
+  creataIl?: string;
+}
+
+interface OrganizzazioneLocale {
+  cartelle: CartellaLocale[];
+  assegnazioni: Record<string, string>;
+}
 
 @Component({
   selector: 'app-archivio-documenti',
   templateUrl: './archivio-documenti.component.html',
   styleUrls: ['./archivio-documenti.component.scss']
 })
-export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
+export class ArchivioDocumentiComponent
+  implements OnInit, OnDestroy {
 
   password = '';
   mostraPassword = false;
 
   documenti: ArchivioDocumento[] = [];
+  cartelle: ArchivioCartella[] = [];
+
   occupato = false;
+  caricamento = false;
+
   errore = '';
   messaggio = '';
 
-  ricerca = '';
-  filtro: FiltroDocumenti = 'tutti';
-  vista: VistaDocumenti = 'griglia';
+  categoria: CategoriaArchivio = 'pdf';
+  cartellaApertaId: string | null = null;
 
+  ricerca = '';
   trascinamentoAttivo = false;
+
+  mostraFormCartella = false;
+  nomeNuovaCartella = '';
+
+  cartellaInModificaId: string | null = null;
+  nomeCartellaInModifica = '';
+
+  mostraSelezioneCartella = false;
+  fileDaCaricare: File | null = null;
+  cartellaDestinazioneId = '';
 
   anteprimaUrl: SafeResourceUrl | null = null;
   anteprimaNome = '';
@@ -38,6 +73,15 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
   private objectUrl: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ultimaAttivita = Date.now();
+
+  private readonly storageKey =
+    'gestionale_archivio_organizzazione_v1';
+
+  private readonly migrazioneKey =
+    'gestionale_archivio_migrazione_db_v1';
+
+  private aggiornamentoInCorso = false;
+  private distrutto = false;
 
   constructor(
     public readonly api: ArchivioApiService,
@@ -62,6 +106,8 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.distrutto = true;
+
     if (this.timer) {
       clearInterval(this.timer);
     }
@@ -69,14 +115,63 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     this.chiudiAnteprima();
   }
 
-  get totaleDocumenti(): number {
-    return this.documenti.length;
+  get titoloCategoria(): string {
+    switch (this.categoria) {
+      case 'pdf':
+        return 'I tuoi PDF';
+      case 'foto':
+        return 'Le tue foto';
+      case 'zip':
+        return 'I tuoi ZIP';
+    }
   }
 
-  get totaleImmagini(): number {
+  get descrizioneCategoria(): string {
+    switch (this.categoria) {
+      case 'pdf':
+        return 'Organizza i tuoi documenti PDF in cartelle.';
+      case 'foto':
+        return 'Conserva e organizza le tue fotografie.';
+      case 'zip':
+        return 'Conserva i tuoi archivi ZIP in cartelle.';
+    }
+  }
+
+  get cartelleCategoria(): ArchivioCartella[] {
+    return this.cartelle
+      .filter(cartella => cartella.categoria === this.categoria)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
+  }
+
+  get cartellaAperta(): ArchivioCartella | undefined {
+    return this.cartelle.find(
+      cartella => cartella.id === this.cartellaApertaId
+    );
+  }
+
+  get documentiCategoria(): ArchivioDocumento[] {
     return this.documenti.filter(
-      doc => doc.mimeType.startsWith('image/')
-    ).length;
+      doc => this.categoriaDocumento(doc) === this.categoria
+    );
+  }
+
+  get documentiVisibili(): ArchivioDocumento[] {
+    const testo = this.ricerca.trim().toLowerCase();
+
+    return this.documentiCategoria.filter(doc => {
+      const cartellaId = doc.cartellaId || null;
+
+      const posizioneCorretta =
+        this.cartellaApertaId === null
+          ? cartellaId === null
+          : cartellaId === this.cartellaApertaId;
+
+      const nomeCorretto =
+        !testo ||
+        doc.nomeOriginale.toLowerCase().includes(testo);
+
+      return posizioneCorretta && nomeCorretto;
+    });
   }
 
   get totalePdf(): number {
@@ -85,23 +180,30 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     ).length;
   }
 
-  get documentiFiltrati(): ArchivioDocumento[] {
-    const testo = this.ricerca.trim().toLowerCase();
+  get totaleFoto(): number {
+    return this.documenti.filter(
+      doc => doc.mimeType.startsWith('image/')
+    ).length;
+  }
 
-    return this.documenti.filter(doc => {
-      const corrispondeRicerca =
-        !testo ||
-        doc.nomeOriginale.toLowerCase().includes(testo);
+  get totaleZip(): number {
+    return this.documenti.filter(
+      doc => this.categoriaDocumento(doc) === 'zip'
+    ).length;
+  }
 
-      const corrispondeTipo =
-        this.filtro === 'tutti' ||
-        (this.filtro === 'immagini' &&
-          doc.mimeType.startsWith('image/')) ||
-        (this.filtro === 'pdf' &&
-          doc.mimeType === 'application/pdf');
+  private categoriaDocumento(
+    doc: ArchivioDocumento
+  ): CategoriaArchivio {
+    if (doc.mimeType === 'application/pdf') {
+      return 'pdf';
+    }
 
-      return corrispondeRicerca && corrispondeTipo;
-    });
+    if (doc.mimeType.startsWith('image/')) {
+      return 'foto';
+    }
+
+    return 'zip';
   }
 
   private attivita(): void {
@@ -119,11 +221,26 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.errore =
-      error instanceof HttpErrorResponse &&
-      typeof error.error?.message === 'string'
-        ? error.error.message
-        : 'Operazione non riuscita.';
+    if (error instanceof HttpErrorResponse) {
+      const message = error.error?.message;
+
+      if (typeof message === 'string') {
+        this.errore = message;
+        return;
+      }
+
+      if (Array.isArray(message)) {
+        this.errore = message.join(', ');
+        return;
+      }
+
+      if (error.status === 413) {
+        this.errore = 'Il file supera il limite consentito.';
+        return;
+      }
+    }
+
+    this.errore = 'Operazione non riuscita.';
   }
 
   accedi(): void {
@@ -152,15 +269,28 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
 
   blocca(avviso = ''): void {
     this.api.blocca();
+
     this.documenti = [];
+    this.cartelle = [];
     this.password = '';
     this.ricerca = '';
-    this.filtro = 'tutti';
+
+    this.cartellaApertaId = null;
+    this.mostraFormCartella = false;
+    this.nomeNuovaCartella = '';
+
+    this.annullaModificaCartella();
+
+    this.mostraSelezioneCartella = false;
+    this.fileDaCaricare = null;
+    this.cartellaDestinazioneId = '';
+
     this.chiudiAnteprima();
 
     this.errore = avviso;
     this.messaggio = '';
     this.occupato = false;
+    this.caricamento = false;
   }
 
   esci(): void {
@@ -171,17 +301,561 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     this.blocca();
   }
 
-  aggiorna(): void {
+  async aggiorna(): Promise<void> {
+    if (
+      !this.api.autenticato ||
+      this.aggiornamentoInCorso
+    ) {
+      return;
+    }
+
+    this.aggiornamentoInCorso = true;
+    this.caricamento = true;
     this.errore = '';
     this.attivita();
 
-    this.api.elenco().subscribe({
-      next: documenti => {
-        this.documenti = documenti;
+    try {
+      let [documenti, cartelle] = await Promise.all([
+        firstValueFrom(this.api.elenco()),
+        firstValueFrom(this.api.elencoCartelle())
+      ]);
+
+      if (!this.api.autenticato || this.distrutto) {
+        return;
+      }
+
+      const migrato = await this.migraOrganizzazioneLocale(
+        documenti,
+        cartelle
+      );
+
+      if (migrato) {
+        [documenti, cartelle] = await Promise.all([
+          firstValueFrom(this.api.elenco()),
+          firstValueFrom(this.api.elencoCartelle())
+        ]);
+      }
+
+      if (!this.api.autenticato || this.distrutto) {
+        return;
+      }
+
+      this.documenti = documenti;
+      this.cartelle = cartelle;
+
+      if (
+        this.cartellaApertaId &&
+        !this.cartelle.some(
+          cartella => cartella.id === this.cartellaApertaId
+        )
+      ) {
+        this.cartellaApertaId = null;
+      }
+    } catch (error) {
+      this.erroreApi(error);
+    } finally {
+      this.caricamento = false;
+      this.aggiornamentoInCorso = false;
+    }
+  }
+
+  // ==========================================================
+  // MIGRAZIONE DAL LOCALSTORAGE A MARIADB
+  // ==========================================================
+
+  private leggiOrganizzazioneLocale():
+    OrganizzazioneLocale | null {
+
+    try {
+      const salvato = localStorage.getItem(this.storageKey);
+
+      if (!salvato) {
+        return null;
+      }
+
+      const dati = JSON.parse(salvato);
+
+      if (
+        !dati ||
+        !Array.isArray(dati.cartelle) ||
+        !dati.assegnazioni ||
+        typeof dati.assegnazioni !== 'object' ||
+        Array.isArray(dati.assegnazioni)
+      ) {
+        throw new Error('Organizzazione locale non valida');
+      }
+
+      const cartelle: CartellaLocale[] = [];
+
+      for (const elemento of dati.cartelle) {
+        if (
+          !elemento ||
+          typeof elemento.id !== 'string' ||
+          typeof elemento.nome !== 'string' ||
+          !['pdf', 'foto', 'zip'].includes(elemento.categoria)
+        ) {
+          throw new Error('Cartella locale non valida');
+        }
+
+        cartelle.push({
+          id: elemento.id,
+          nome: elemento.nome,
+          categoria: elemento.categoria
+        });
+      }
+
+      const assegnazioni: Record<string, string> = {};
+
+      for (const [id, cartellaId] of Object.entries(
+        dati.assegnazioni
+      )) {
+        if (typeof cartellaId !== 'string') {
+          throw new Error('Assegnazione locale non valida');
+        }
+
+        assegnazioni[id] = cartellaId;
+      }
+
+      return { cartelle, assegnazioni };
+    } catch {
+      throw new Error(
+        'I dati delle vecchie cartelle nel browser non sono leggibili. ' +
+        'Non sono stati cancellati: verifica il localStorage.'
+      );
+    }
+  }
+
+  private async migraOrganizzazioneLocale(
+    documenti: ArchivioDocumento[],
+    cartelleServer: ArchivioCartella[]
+  ): Promise<boolean> {
+    if (
+      localStorage.getItem(this.migrazioneKey) === 'completata'
+    ) {
+      return false;
+    }
+
+    const dati = this.leggiOrganizzazioneLocale();
+
+    if (!dati) {
+      return false;
+    }
+
+    if (
+      dati.cartelle.length === 0 &&
+      Object.keys(dati.assegnazioni).length === 0
+    ) {
+      localStorage.setItem(this.migrazioneKey, 'completata');
+      return false;
+    }
+
+    const corrispondenze = new Map<string, string>();
+    const cartelleDisponibili = [...cartelleServer];
+
+    // Crea le cartelle mancanti. Le cartelle già migrate
+    // vengono riconosciute dal nome e dalla categoria.
+    for (const locale of dati.cartelle) {
+      if (!locale.nome.trim()) {
+        throw new Error(
+          'Una vecchia cartella non ha un nome valido.'
+        );
+      }
+
+      let remota = cartelleDisponibili.find(
+        cartella =>
+          cartella.categoria === locale.categoria &&
+          cartella.nome.trim().toLowerCase() ===
+            locale.nome.trim().toLowerCase()
+      );
+
+      if (!remota) {
+        remota = await firstValueFrom(
+          this.api.creaCartella(
+            locale.nome.trim(),
+            locale.categoria
+          )
+        );
+
+        cartelleDisponibili.push(remota);
+      }
+
+      corrispondenze.set(locale.id, remota.id);
+    }
+
+    const documentiPerId = new Map(
+      documenti.map(doc => [String(doc.id), doc])
+    );
+
+    // Riporta nel database le assegnazioni dei documenti.
+    // Se un documento ha già una cartella sul server,
+    // non sovrascrive la scelta fatta da altri dispositivi.
+    for (const [documentoId, vecchiaCartellaId]
+      of Object.entries(dati.assegnazioni)) {
+
+      const documento = documentiPerId.get(documentoId);
+
+      if (!documento) {
+        // Il documento potrebbe essere stato eliminato.
+        continue;
+      }
+
+      const nuovaCartellaId =
+        corrispondenze.get(vecchiaCartellaId);
+
+      if (!nuovaCartellaId) {
+        throw new Error(
+          'Una vecchia assegnazione fa riferimento a una cartella mancante.'
+        );
+      }
+
+      const cartella = cartelleDisponibili.find(
+        elemento => elemento.id === nuovaCartellaId
+      );
+
+      if (
+        !cartella ||
+        cartella.categoria !== this.categoriaDocumento(documento)
+      ) {
+        throw new Error(
+          'Una vecchia assegnazione non è compatibile con il tipo di documento.'
+        );
+      }
+
+      if (documento.cartellaId) {
+        continue;
+      }
+
+      const aggiornato = await firstValueFrom(
+        this.api.spostaDocumento(
+          documentoId,
+          nuovaCartellaId
+        )
+      );
+
+      documentiPerId.set(documentoId, aggiornato);
+    }
+
+    // Solo dopo aver completato tutte le operazioni
+    // contrassegna la migrazione come terminata.
+    // La copia originale NON viene eliminata.
+    localStorage.setItem(
+      this.migrazioneKey,
+      'completata'
+    );
+
+    this.messaggio =
+      'Cartelle locali trasferite nel database. ' +
+      'Ora sono disponibili anche sugli altri dispositivi.';
+
+    return true;
+  }
+
+  // ==========================================================
+  // NAVIGAZIONE
+  // ==========================================================
+
+  cambiaCategoria(categoria: CategoriaArchivio): void {
+    this.categoria = categoria;
+    this.cartellaApertaId = null;
+    this.ricerca = '';
+
+    this.annullaNuovaCartella();
+    this.annullaModificaCartella();
+
+    this.mostraSelezioneCartella = false;
+    this.fileDaCaricare = null;
+
+    this.errore = '';
+    this.messaggio = '';
+
+    this.attivita();
+  }
+
+  apriCartella(cartella: ArchivioCartella): void {
+    if (this.cartellaInModificaId === cartella.id) {
+      return;
+    }
+
+    this.cartellaApertaId = cartella.id;
+    this.ricerca = '';
+    this.attivita();
+  }
+
+  tornaAlleCartelle(): void {
+    this.cartellaApertaId = null;
+    this.ricerca = '';
+    this.attivita();
+  }
+
+  numeroFileCartella(cartellaId: string): number {
+    return this.documenti.filter(
+      doc => doc.cartellaId === cartellaId
+    ).length;
+  }
+
+  // ==========================================================
+  // GESTIONE CARTELLE
+  // ==========================================================
+
+  nuovaCartella(): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
+    this.annullaModificaCartella();
+
+    this.nomeNuovaCartella = '';
+    this.mostraFormCartella = true;
+    this.errore = '';
+  }
+
+  annullaNuovaCartella(): void {
+    this.mostraFormCartella = false;
+    this.nomeNuovaCartella = '';
+  }
+
+  creaCartella(): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
+    const nome = this.nomeNuovaCartella.trim();
+
+    if (!nome || nome.length > 80) {
+      this.errore =
+        'Inserisci un nome da 1 a 80 caratteri.';
+      return;
+    }
+
+    const duplicato = this.cartelleCategoria.some(
+      cartella =>
+        cartella.nome.toLowerCase() === nome.toLowerCase()
+    );
+
+    if (duplicato) {
+      this.errore =
+        'Esiste già una cartella con questo nome.';
+      return;
+    }
+
+    this.occupato = true;
+    this.errore = '';
+
+    this.api.creaCartella(nome, this.categoria).subscribe({
+      next: cartella => {
+        this.cartelle = [...this.cartelle, cartella];
+
+        this.annullaNuovaCartella();
+        this.occupato = false;
+
+        this.messaggio = 'Cartella creata correttamente.';
+        this.attivita();
       },
-      error: error => this.erroreApi(error)
+      error: error => {
+        this.occupato = false;
+        this.erroreApi(error);
+      }
     });
   }
+
+  modificaCartella(cartella: ArchivioCartella): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
+    this.annullaNuovaCartella();
+
+    this.cartellaInModificaId = cartella.id;
+    this.nomeCartellaInModifica = cartella.nome;
+
+    this.errore = '';
+    this.messaggio = '';
+
+    this.attivita();
+  }
+
+  confermaModificaCartella(
+    cartella: ArchivioCartella
+  ): void {
+    if (
+      this.cartellaInModificaId !== cartella.id ||
+      this.occupato ||
+      this.caricamento
+    ) {
+      return;
+    }
+
+    const nuovoNome = this.nomeCartellaInModifica.trim();
+
+    if (!nuovoNome || nuovoNome.length > 80) {
+      this.errore =
+        'Il nome deve contenere da 1 a 80 caratteri.';
+      return;
+    }
+
+    const duplicato = this.cartelle.some(
+      elemento =>
+        elemento.id !== cartella.id &&
+        elemento.categoria === cartella.categoria &&
+        elemento.nome.toLowerCase() ===
+          nuovoNome.toLowerCase()
+    );
+
+    if (duplicato) {
+      this.errore =
+        'Esiste già una cartella con questo nome.';
+      return;
+    }
+
+    if (cartella.nome === nuovoNome) {
+      this.annullaModificaCartella();
+      return;
+    }
+
+    this.occupato = true;
+    this.errore = '';
+
+    this.api.rinominaCartella(
+      cartella.id,
+      nuovoNome
+    ).subscribe({
+      next: aggiornata => {
+        this.cartelle = this.cartelle.map(
+          elemento =>
+            elemento.id === aggiornata.id
+              ? aggiornata
+              : elemento
+        );
+
+        this.annullaModificaCartella();
+        this.occupato = false;
+
+        this.messaggio =
+          'Nome della cartella modificato correttamente.';
+
+        this.attivita();
+      },
+      error: error => {
+        this.occupato = false;
+        this.erroreApi(error);
+      }
+    });
+  }
+
+  annullaModificaCartella(): void {
+    this.cartellaInModificaId = null;
+    this.nomeCartellaInModifica = '';
+  }
+
+  eliminaCartella(cartella: ArchivioCartella): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
+    const conferma = confirm(
+      `Eliminare la cartella "${cartella.nome}"?\n\n` +
+      'I documenti contenuti non verranno eliminati: ' +
+      'torneranno nella sezione principale.'
+    );
+
+    if (!conferma) {
+      return;
+    }
+
+    this.occupato = true;
+    this.errore = '';
+
+    this.api.eliminaCartella(cartella.id).subscribe({
+      next: () => {
+        this.cartelle = this.cartelle.filter(
+          elemento => elemento.id !== cartella.id
+        );
+
+        this.documenti = this.documenti.map(
+          documento =>
+            documento.cartellaId === cartella.id
+              ? { ...documento, cartellaId: null }
+              : documento
+        );
+
+        if (this.cartellaApertaId === cartella.id) {
+          this.cartellaApertaId = null;
+        }
+
+        if (this.cartellaInModificaId === cartella.id) {
+          this.annullaModificaCartella();
+        }
+
+        this.occupato = false;
+        this.messaggio = 'Cartella eliminata.';
+        this.attivita();
+      },
+      error: error => {
+        this.occupato = false;
+        this.erroreApi(error);
+      }
+    });
+  }
+
+  spostaDocumento(
+    doc: ArchivioDocumento,
+    cartellaId: string
+  ): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
+    const destinazione = cartellaId || null;
+
+    if (destinazione) {
+      const cartellaValida = this.cartelle.some(
+        cartella =>
+          cartella.id === destinazione &&
+          cartella.categoria === this.categoriaDocumento(doc)
+      );
+
+      if (!cartellaValida) {
+        this.errore =
+          'Cartella di destinazione non valida.';
+        return;
+      }
+    }
+
+    if ((doc.cartellaId || null) === destinazione) {
+      return;
+    }
+
+    this.occupato = true;
+    this.errore = '';
+
+    this.api.spostaDocumento(
+      String(doc.id),
+      destinazione
+    ).subscribe({
+      next: aggiornato => {
+        this.documenti = this.documenti.map(
+          elemento =>
+            elemento.id === aggiornato.id
+              ? aggiornato
+              : elemento
+        );
+
+        this.occupato = false;
+        this.messaggio =
+          'Documento spostato correttamente.';
+
+        this.attivita();
+      },
+      error: error => {
+        this.occupato = false;
+        this.erroreApi(error);
+      }
+    });
+  }
+
+  // ==========================================================
+  // CARICAMENTO PDF, FOTO E ZIP
+  // ==========================================================
 
   selezionaFile(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -190,20 +864,15 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     input.value = '';
 
     if (file) {
-      this.caricaFile(file);
+      this.preparaCaricamento(file);
     }
-  }
-
-  // Compatibilità con il precedente template.
-  carica(event: Event): void {
-    this.selezionaFile(event);
   }
 
   trascinaSopra(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!this.occupato) {
+    if (!this.occupato && !this.caricamento) {
       this.trascinamentoAttivo = true;
     }
   }
@@ -211,6 +880,7 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
   trascinaFuori(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
+
     this.trascinamentoAttivo = false;
   }
 
@@ -220,51 +890,102 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
 
     this.trascinamentoAttivo = false;
 
-    if (this.occupato) {
+    if (this.occupato || this.caricamento) {
       return;
     }
 
     const file = event.dataTransfer?.files?.[0];
 
     if (file) {
-      this.caricaFile(file);
+      this.preparaCaricamento(file);
     }
   }
 
-  private caricaFile(file: File): void {
-    if (this.occupato) {
-      return;
-    }
+  private preparaCaricamento(file: File): void {
+    this.errore = '';
 
-    if (file.size > 15 * 1024 * 1024) {
-      this.errore = 'Dimensione massima consentita: 15 MB.';
-      return;
-    }
+    const nome = file.name.toLowerCase();
 
-    const formatiConsentiti = [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/webp'
-    ];
+    const maxBytes =
+      this.categoria === 'zip'
+        ? 100 * 1024 * 1024
+        : 15 * 1024 * 1024;
 
-    if (!formatiConsentiti.includes(file.type)) {
+    if (!file.size || file.size > maxBytes) {
       this.errore =
-        'Formato consentito: PDF, JPG, PNG oppure WebP.';
+        this.categoria === 'zip'
+          ? 'Dimensione massima ZIP: 100 MB.'
+          : 'Dimensione massima consentita: 15 MB.';
       return;
     }
+
+    let valido = false;
+
+    if (this.categoria === 'pdf') {
+      valido = nome.endsWith('.pdf');
+    } else if (this.categoria === 'foto') {
+      valido =
+        nome.endsWith('.jpg') ||
+        nome.endsWith('.jpeg') ||
+        nome.endsWith('.png') ||
+        nome.endsWith('.webp');
+    } else {
+      valido = nome.endsWith('.zip');
+    }
+
+    if (!valido) {
+      this.errore =
+        this.categoria === 'pdf'
+          ? 'In questa sezione puoi caricare solo PDF.'
+          : this.categoria === 'foto'
+            ? 'In questa sezione puoi caricare JPG, PNG e WebP.'
+            : 'In questa sezione puoi caricare solo ZIP.';
+      return;
+    }
+
+    this.fileDaCaricare = file;
+    this.cartellaDestinazioneId =
+      this.cartellaApertaId || '';
+
+    this.mostraSelezioneCartella = true;
+    this.attivita();
+  }
+
+  annullaCaricamento(): void {
+    this.fileDaCaricare = null;
+    this.mostraSelezioneCartella = false;
+    this.cartellaDestinazioneId = '';
+  }
+
+  confermaCaricamento(): void {
+    const file = this.fileDaCaricare;
+
+    if (!file || this.occupato || this.caricamento) {
+      return;
+    }
+
+    const destinazione =
+      this.cartellaDestinazioneId || null;
 
     this.occupato = true;
     this.errore = '';
     this.messaggio = '';
     this.attivita();
 
-    this.api.carica(file).subscribe({
-      next: () => {
+    this.api.carica(file, destinazione).subscribe({
+      next: documento => {
+        this.documenti = [
+          documento,
+          ...this.documenti
+        ];
+
         this.occupato = false;
-        this.aggiorna();
+        this.annullaCaricamento();
+
         this.messaggio =
-          'Documento caricato e cifrato correttamente.';
+          'File caricato e cifrato correttamente.';
+
+        this.attivita();
       },
       error: error => {
         this.occupato = false;
@@ -273,14 +994,19 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ==========================================================
+  // DOWNLOAD E ANTEPRIME
+  // ==========================================================
+
   scarica(doc: ArchivioDocumento): void {
     this.errore = '';
     this.attivita();
 
-    this.api.file(doc.id).subscribe({
+    this.api.file(String(doc.id)).subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);
-        const collegamento = document.createElement('a');
+        const collegamento =
+          document.createElement('a');
 
         collegamento.href = url;
         collegamento.download = doc.nomeOriginale;
@@ -289,7 +1015,10 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
         collegamento.click();
         collegamento.remove();
 
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setTimeout(
+          () => URL.revokeObjectURL(url),
+          1000
+        );
       },
       error: error => this.erroreApi(error)
     });
@@ -300,10 +1029,22 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     this.errore = '';
     this.attivita();
 
-    this.api.file(doc.id).subscribe({
+    if (
+      doc.mimeType !== 'application/pdf' &&
+      !doc.mimeType.startsWith('image/')
+    ) {
+      this.errore =
+        'Per i file ZIP è disponibile il download, non l’anteprima.';
+      return;
+    }
+
+    this.api.file(String(doc.id)).subscribe({
       next: blob => {
         this.objectUrl = URL.createObjectURL(
-          new Blob([blob], { type: doc.mimeType })
+          new Blob(
+            [blob],
+            { type: doc.mimeType }
+          )
         );
 
         this.anteprimaUrl =
@@ -331,6 +1072,10 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
   }
 
   elimina(doc: ArchivioDocumento): void {
+    if (this.occupato || this.caricamento) {
+      return;
+    }
+
     const conferma = confirm(
       `Eliminare definitivamente "${doc.nomeOriginale}"?`
     );
@@ -339,37 +1084,39 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.occupato = true;
     this.errore = '';
     this.attivita();
 
-    this.api.elimina(doc.id).subscribe({
+    this.api.elimina(String(doc.id)).subscribe({
       next: () => {
         this.chiudiAnteprima();
-        this.aggiorna();
-        this.messaggio = 'Documento eliminato correttamente.';
+
+        this.documenti = this.documenti.filter(
+          elemento => elemento.id !== doc.id
+        );
+
+        this.occupato = false;
+        this.messaggio =
+          'Documento eliminato correttamente.';
       },
-      error: error => this.erroreApi(error)
+      error: error => {
+        this.occupato = false;
+        this.erroreApi(error);
+      }
     });
   }
 
-  impostaFiltro(filtro: FiltroDocumenti): void {
-    this.filtro = filtro;
-    this.attivita();
-  }
-
-  impostaVista(vista: VistaDocumenti): void {
-    this.vista = vista;
-    this.attivita();
-  }
-
-  iconaDocumento(doc: ArchivioDocumento): string {
-    return doc.mimeType === 'application/pdf'
-      ? 'pi pi-file-pdf'
-      : 'pi pi-image';
-  }
+  // ==========================================================
+  // UTILITÀ
+  // ==========================================================
 
   dimensione(bytes: string): string {
     const n = Number(bytes);
+
+    if (!Number.isFinite(n) || n < 0) {
+      return 'Dimensione sconosciuta';
+    }
 
     if (n < 1024) {
       return `${n} B`;
@@ -382,10 +1129,29 @@ export class ArchivioDocumentiComponent implements OnInit, OnDestroy {
     return `${(n / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  iconaDocumento(doc: ArchivioDocumento): string {
+    if (doc.mimeType === 'application/pdf') {
+      return 'pi pi-file-pdf';
+    }
+
+    if (doc.mimeType.startsWith('image/')) {
+      return 'pi pi-image';
+    }
+
+    return 'pi pi-file';
+  }
+
   trackByDocumento(
     index: number,
     doc: ArchivioDocumento
   ): string {
     return String(doc.id);
+  }
+
+  trackByCartella(
+    index: number,
+    cartella: ArchivioCartella
+  ): string {
+    return cartella.id;
   }
 }

@@ -1,6 +1,8 @@
 
 <section class="archivio">
+
   <!-- INTESTAZIONE -->
+
   <header class="archivio-header">
     <div class="header-identita">
       <div class="header-icona">
@@ -9,14 +11,13 @@
 
       <div>
         <div class="header-etichetta">
-          IL TUO SPAZIO PRIVATO
+          GESTIONALE PERSONALE
         </div>
 
         <h1>Archivio Documenti</h1>
 
         <p>
-          Conserva e organizza fotografie e documenti
-          in uno spazio protetto.
+          Tutti i tuoi documenti, organizzati e protetti.
         </p>
       </div>
     </div>
@@ -26,49 +27,66 @@
       type="button"
       class="btn-blocca"
       (click)="esci()">
+
       <i class="pi pi-lock"></i>
       Blocca archivio
     </button>
   </header>
 
   <!-- MESSAGGI -->
-  <div *ngIf="errore" class="avviso errore" role="alert">
+
+  <div
+    *ngIf="errore"
+    class="avviso errore"
+    role="alert">
+
     <i class="pi pi-exclamation-circle"></i>
     <span>{{ errore }}</span>
   </div>
 
-  <div *ngIf="messaggio" class="avviso successo" role="status">
+  <div
+    *ngIf="messaggio"
+    class="avviso successo"
+    role="status">
+
     <i class="pi pi-check-circle"></i>
     <span>{{ messaggio }}</span>
   </div>
 
-  <!-- ACCESSO CON PASSWORD -->
-  <div *ngIf="!api.autenticato" class="accesso-wrapper">
+  <!-- ACCESSO -->
+
+  <div
+    *ngIf="!api.autenticato"
+    class="accesso-wrapper">
+
     <div class="accesso-card">
+
       <div class="accesso-icona">
         <i class="pi pi-lock"></i>
       </div>
 
       <h2>Il tuo archivio è protetto</h2>
 
-      <p class="accesso-descrizione">
+      <p>
         Inserisci la password per accedere ai tuoi
-        documenti e alle tue fotografie.
+        documenti, fotografie e archivi ZIP.
       </p>
 
       <form (ngSubmit)="accedi()">
+
         <label for="passwordArchivio">
           Password archivio
         </label>
 
         <div class="password-wrapper">
+
           <input
             id="passwordArchivio"
-            [type]="mostraPassword ? 'text' : 'password'"
             name="password"
+            [type]="mostraPassword ? 'text' : 'password'"
             [(ngModel)]="password"
-            autocomplete="off"
             placeholder="Inserisci la password"
+            autocomplete="off"
             required
           />
 
@@ -76,326 +94,791 @@
             type="button"
             class="mostra-password"
             (click)="mostraPassword = !mostraPassword"
-            [attr.aria-label]="mostraPassword ? 'Nascondi password' : 'Mostra password'">
+            [attr.aria-label]="
+              mostraPassword
+                ? 'Nascondi password'
+                : 'Mostra password'
+            ">
+
             <i
               class="pi"
-              [ngClass]="mostraPassword ? 'pi-eye-slash' : 'pi-eye'">
+              [ngClass]="
+                mostraPassword
+                  ? 'pi-eye-slash'
+                  : 'pi-eye'
+              ">
             </i>
           </button>
+
         </div>
 
         <button
           type="submit"
           class="btn-primario btn-accesso"
           [disabled]="occupato || !password">
-          <i
-            class="pi"
-            [ngClass]="occupato ? 'pi-spin pi-spinner' : 'pi-unlock'">
-          </i>
 
-          {{ occupato ? 'Verifica in corso...' : 'Sblocca archivio' }}
+          <i class="pi pi-unlock"></i>
+
+          {{
+            occupato
+              ? 'Verifica in corso...'
+              : 'Sblocca archivio'
+          }}
         </button>
+
       </form>
 
       <div class="accesso-sicurezza">
         <i class="pi pi-shield"></i>
-        Documenti protetti con cifratura AES-256-GCM
+        Documenti cifrati con AES-256-GCM
       </div>
+
     </div>
   </div>
 
   <!-- ARCHIVIO SBLOCCATO -->
+
   <ng-container *ngIf="api.autenticato">
 
-    <!-- STATISTICHE -->
-    <div class="statistiche">
-      <div class="stat-card">
-        <div class="stat-icona blu">
-          <i class="pi pi-folder"></i>
-        </div>
+    <!-- CATEGORIE -->
 
-        <div>
-          <span class="stat-label">Documenti totali</span>
-          <strong>{{ totaleDocumenti }}</strong>
-        </div>
-      </div>
+    <nav
+      class="categorie-tabs"
+      aria-label="Categorie archivio">
 
-      <div class="stat-card">
-        <div class="stat-icona viola">
-          <i class="pi pi-image"></i>
-        </div>
+      <button
+        type="button"
+        [class.attivo]="categoria === 'pdf'"
+        (click)="cambiaCategoria('pdf')">
 
-        <div>
-          <span class="stat-label">Fotografie</span>
-          <strong>{{ totaleImmagini }}</strong>
-        </div>
-      </div>
+        <i class="pi pi-file-pdf"></i>
+        PDF
 
-      <div class="stat-card">
-        <div class="stat-icona rosso">
-          <i class="pi pi-file-pdf"></i>
-        </div>
-
-        <div>
-          <span class="stat-label">Documenti PDF</span>
-          <strong>{{ totalePdf }}</strong>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARICAMENTO -->
-    <section class="pannello upload-section">
-      <div class="section-heading">
-        <div>
-          <h2>Carica nuovi file</h2>
-          <p>
-            Aggiungi fotografie o documenti al tuo archivio.
-          </p>
-        </div>
-
-        <span class="protezione-label">
-          <i class="pi pi-shield"></i>
-          Cifratura attiva
+        <span class="categoria-count">
+          {{ totalePdf }}
         </span>
-      </div>
+      </button>
 
-      <div
-        class="upload-zone"
-        [class.drag-active]="trascinamentoAttivo"
-        [class.upload-disabled]="occupato"
-        (dragover)="trascinaSopra($event)"
-        (dragleave)="trascinaFuori($event)"
-        (drop)="rilasciaFile($event)">
+      <button
+        type="button"
+        [class.attivo]="categoria === 'foto'"
+        (click)="cambiaCategoria('foto')">
 
-        <div class="upload-icona">
-          <i
-            class="pi"
-            [ngClass]="occupato ? 'pi-spin pi-spinner' : 'pi-cloud-upload'">
-          </i>
-        </div>
+        <i class="pi pi-image"></i>
+        Foto
 
-        <h3>
-          {{ occupato
-            ? 'Caricamento in corso...'
-            : 'Trascina qui i tuoi file' }}
-        </h3>
+        <span class="categoria-count">
+          {{ totaleFoto }}
+        </span>
+      </button>
 
-        <p>oppure selezionali dal tuo dispositivo</p>
+      <button
+        type="button"
+        [class.attivo]="categoria === 'zip'"
+        (click)="cambiaCategoria('zip')">
 
-        <label
-          class="btn-primario pulsante-file"
-          [class.disabilitato]="occupato">
+        <i class="pi pi-file"></i>
+        ZIP
 
-          <i class="pi pi-plus"></i>
-          {{ occupato ? 'Attendere...' : 'Scegli un file' }}
+        <span class="categoria-count">
+          {{ totaleZip }}
+        </span>
+      </button>
 
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-            [disabled]="occupato"
-            (change)="selezionaFile($event)"
-          />
-        </label>
+    </nav>
 
-        <div class="upload-formati">
-          <i class="pi pi-info-circle"></i>
-          PDF, JPG, PNG e WebP · Massimo 15 MB per file
-        </div>
-      </div>
-    </section>
+    <!-- PANNELLO PRINCIPALE -->
 
-    <!-- ELENCO DOCUMENTI -->
-    <section class="pannello documenti-section">
-      <div class="section-heading documenti-heading">
+    <section class="pannello archivio-contenuto">
+
+      <div class="contenuto-header">
+
         <div>
-          <h2>I tuoi documenti</h2>
+
+          <!-- PERCORSO -->
+
+          <div
+            *ngIf="cartellaAperta"
+            class="breadcrumb">
+
+            <button
+              type="button"
+              (click)="tornaAlleCartelle()">
+
+              <i class="pi pi-arrow-left"></i>
+              {{ titoloCategoria }}
+            </button>
+
+            <i class="pi pi-angle-right"></i>
+
+            <span>
+              {{ cartellaAperta.nome }}
+            </span>
+
+          </div>
+
+          <h2>
+            {{
+              cartellaAperta
+                ? cartellaAperta.nome
+                : titoloCategoria
+            }}
+          </h2>
+
           <p>
-            Cerca, visualizza e gestisci i file salvati.
+            {{
+              cartellaAperta
+                ? 'Documenti contenuti in questa cartella.'
+                : descrizioneCategoria
+            }}
           </p>
+
         </div>
 
-        <button
-          type="button"
-          class="btn-secondario"
-          (click)="aggiorna()">
-          <i class="pi pi-refresh"></i>
-          Aggiorna
-        </button>
+        <!-- AZIONI PRINCIPALI -->
+
+        <div class="header-azioni">
+
+          <button
+            type="button"
+            class="btn-secondario"
+            (click)="aggiorna()"
+            [disabled]="caricamento || occupato">
+
+            <i class="pi pi-refresh"></i>
+            Aggiorna
+          </button>
+
+          <button
+            *ngIf="!cartellaAperta"
+            type="button"
+            class="btn-secondario"
+            (click)="nuovaCartella()"
+            [disabled]="caricamento || occupato">
+
+            <i class="pi pi-folder"></i>
+            Nuova cartella
+          </button>
+
+          <label
+            class="btn-primario btn-aggiungi"
+            [class.disabilitato]="occupato || caricamento">
+
+            <i class="pi pi-plus"></i>
+            Aggiungi file
+
+            <input
+              type="file"
+              [accept]="
+                categoria === 'pdf'
+                  ? '.pdf,application/pdf'
+                  : categoria === 'foto'
+                    ? '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'
+                    : '.zip,application/zip,application/x-zip-compressed'
+              "
+              [disabled]="occupato || caricamento"
+              (change)="selezionaFile($event)"
+            />
+
+          </label>
+
+        </div>
+
       </div>
 
-      <!-- STRUMENTI -->
-      <div class="toolbar">
+      <!-- RICERCA -->
+
+      <div class="strumenti">
+
         <div class="ricerca-wrapper">
+
           <i class="pi pi-search"></i>
 
           <input
             type="search"
-            name="ricercaDocumenti"
+            name="ricerca"
             [(ngModel)]="ricerca"
-            placeholder="Cerca un documento..."
-            aria-label="Cerca documenti per nome"
+            placeholder="Cerca un file..."
+            aria-label="Cerca un file"
           />
+
         </div>
 
-        <div class="filtri" aria-label="Filtra documenti">
-          <button
-            type="button"
-            [class.attivo]="filtro === 'tutti'"
-            (click)="impostaFiltro('tutti')">
-            Tutti
-          </button>
+        <span class="conteggio-file">
+          {{ documentiVisibili.length }} file
+        </span>
 
-          <button
-            type="button"
-            [class.attivo]="filtro === 'immagini'"
-            (click)="impostaFiltro('immagini')">
-            Foto
-          </button>
-
-          <button
-            type="button"
-            [class.attivo]="filtro === 'pdf'"
-            (click)="impostaFiltro('pdf')">
-            PDF
-          </button>
-        </div>
-
-        <div class="vista-switch" aria-label="Visualizzazione">
-          <button
-            type="button"
-            title="Vista griglia"
-            aria-label="Vista griglia"
-            [class.attivo]="vista === 'griglia'"
-            (click)="impostaVista('griglia')">
-            <i class="pi pi-th-large"></i>
-          </button>
-
-          <button
-            type="button"
-            title="Vista elenco"
-            aria-label="Vista elenco"
-            [class.attivo]="vista === 'lista'"
-            (click)="impostaVista('lista')">
-            <i class="pi pi-list"></i>
-          </button>
-        </div>
       </div>
 
-      <div class="risultati-count">
-        {{ documentiFiltrati.length }}
-        {{ documentiFiltrati.length === 1 ? 'documento' : 'documenti' }}
-        visualizzati
-      </div>
+      <!-- FORM NUOVA CARTELLA -->
 
-      <!-- STATO VUOTO -->
+      <form
+        *ngIf="mostraFormCartella"
+        class="form-cartella"
+        (ngSubmit)="creaCartella()">
+
+        <div class="form-cartella-icona">
+          <i class="pi pi-folder"></i>
+        </div>
+
+        <div class="form-cartella-campo">
+
+          <label for="nomeCartella">
+            Nome della nuova cartella
+          </label>
+
+          <input
+            id="nomeCartella"
+            name="nomeCartella"
+            type="text"
+            [(ngModel)]="nomeNuovaCartella"
+            placeholder="Es. Documenti personali"
+            maxlength="80"
+            [disabled]="occupato"
+            required
+          />
+
+        </div>
+
+        <button
+          type="submit"
+          class="btn-primario"
+          [disabled]="occupato || caricamento">
+
+          <i class="pi pi-check"></i>
+          Crea
+        </button>
+
+        <button
+          type="button"
+          class="btn-secondario"
+          (click)="annullaNuovaCartella()"
+          [disabled]="occupato">
+
+          Annulla
+        </button>
+
+      </form>
+
+      <!-- CARTELLE -->
+
       <div
-        *ngIf="!documentiFiltrati.length"
-        class="stato-vuoto">
+        *ngIf="
+          !cartellaAperta &&
+          cartelleCategoria.length > 0
+        "
+        class="sezione-cartelle">
 
-        <div class="vuoto-icona">
-          <i class="pi pi-folder-open"></i>
+        <div class="sezione-titolo">
+
+          <i class="pi pi-folder"></i>
+          <h3>Le tue cartelle</h3>
+
         </div>
 
-        <h3>
-          {{ documenti.length
-            ? 'Nessun risultato trovato'
-            : 'Il tuo archivio è vuoto' }}
-        </h3>
+        <div class="cartelle-grid">
 
-        <p>
-          {{ documenti.length
-            ? 'Prova a cambiare ricerca o filtro.'
-            : 'Carica il tuo primo documento per iniziare.' }}
-        </p>
-      </div>
+          <article
+            *ngFor="
+              let cartella of cartelleCategoria;
+              trackBy: trackByCartella
+            "
+            class="cartella-card"
+            [class.cartella-in-modifica]="
+              cartellaInModificaId === cartella.id
+            ">
 
-      <!-- GRIGLIA / ELENCO -->
-      <div
-        *ngIf="documentiFiltrati.length"
-        class="documenti-grid"
-        [class.vista-lista]="vista === 'lista'">
+            <!-- PULSANTI CARTELLA -->
 
-        <article
-          *ngFor="let doc of documentiFiltrati; trackBy: trackByDocumento"
-          class="documento-card">
+            <div class="cartella-azioni">
 
-          <div
-            class="documento-preview"
-            [class.pdf]="doc.mimeType === 'application/pdf'"
-            [class.immagine]="doc.mimeType.startsWith('image/')">
+              <!-- MODALITÀ NORMALE -->
 
-            <i [class]="iconaDocumento(doc)"></i>
+              <ng-container
+                *ngIf="
+                  cartellaInModificaId !== cartella.id
+                ">
 
-            <span class="file-tipo">
-              {{ doc.mimeType === 'application/pdf' ? 'PDF' : 'IMMAGINE' }}
-            </span>
-          </div>
+                <button
+                  type="button"
+                  class="cartella-azione modifica"
+                  [attr.aria-label]="
+                    'Modifica nome cartella ' + cartella.nome
+                  "
+                  title="Modifica nome cartella"
+                  [disabled]="occupato || caricamento"
+                  (click)="modificaCartella(cartella)">
 
-          <div class="documento-info">
-            <h3 [title]="doc.nomeOriginale">
-              {{ doc.nomeOriginale }}
-            </h3>
+                  <i class="pi pi-pencil"></i>
+                </button>
 
-            <div class="documento-meta">
-              <span>
-                <i class="pi pi-database"></i>
-                {{ dimensione(doc.dimensioneOriginale) }}
-              </span>
+                <button
+                  type="button"
+                  class="cartella-azione elimina"
+                  [attr.aria-label]="
+                    'Elimina cartella ' + cartella.nome
+                  "
+                  title="Elimina cartella"
+                  [disabled]="occupato || caricamento"
+                  (click)="eliminaCartella(cartella)">
 
-              <span>
-                <i class="pi pi-calendar"></i>
-                {{ doc.creatoIl | date:'dd/MM/yyyy' }}
-              </span>
+                  <i class="pi pi-trash"></i>
+                </button>
+
+              </ng-container>
+
+              <!-- MODALITÀ MODIFICA -->
+
+              <ng-container
+                *ngIf="
+                  cartellaInModificaId === cartella.id
+                ">
+
+                <button
+                  type="button"
+                  class="cartella-azione conferma"
+                  [attr.aria-label]="
+                    'Conferma modifica ' + cartella.nome
+                  "
+                  title="Conferma modifica"
+                  [disabled]="occupato || caricamento"
+                  (click)="confermaModificaCartella(cartella)">
+
+                  <i class="pi pi-check"></i>
+                </button>
+
+                <button
+                  type="button"
+                  class="cartella-azione annulla"
+                  [attr.aria-label]="
+                    'Annulla modifica ' + cartella.nome
+                  "
+                  title="Annulla modifica"
+                  [disabled]="occupato"
+                  (click)="annullaModificaCartella()">
+
+                  <i class="pi pi-times"></i>
+                </button>
+
+              </ng-container>
+
             </div>
-          </div>
 
-          <div class="documento-azioni">
-            <button
-              type="button"
-              class="azione-btn"
-              title="Anteprima"
-              [attr.aria-label]="'Anteprima di ' + doc.nomeOriginale"
-              (click)="anteprima(doc)">
-              <i class="pi pi-eye"></i>
-              <span>Apri</span>
-            </button>
+            <!-- CARTELLA NORMALE -->
 
             <button
+              *ngIf="
+                cartellaInModificaId !== cartella.id
+              "
               type="button"
-              class="azione-btn"
-              title="Scarica"
-              [attr.aria-label]="'Scarica ' + doc.nomeOriginale"
-              (click)="scarica(doc)">
-              <i class="pi pi-download"></i>
-              <span>Scarica</span>
+              class="cartella-apri"
+              (click)="apriCartella(cartella)">
+
+              <div class="cartella-icona">
+                <i class="pi pi-folder"></i>
+              </div>
+
+              <strong>{{ cartella.nome }}</strong>
+
+              <span>
+                {{ numeroFileCartella(cartella.id) }} file
+              </span>
+
             </button>
 
-            <button
-              type="button"
-              class="azione-btn elimina-btn"
-              title="Elimina"
-              [attr.aria-label]="'Elimina ' + doc.nomeOriginale"
-              (click)="elimina(doc)">
-              <i class="pi pi-trash"></i>
-              <span>Elimina</span>
-            </button>
-          </div>
-        </article>
+            <!-- CARTELLA IN MODIFICA -->
+
+            <div
+              *ngIf="
+                cartellaInModificaId === cartella.id
+              "
+              class="cartella-edit">
+
+              <div class="cartella-icona">
+                <i class="pi pi-folder"></i>
+              </div>
+
+              <input
+                type="text"
+                class="cartella-nome-input"
+                [(ngModel)]="nomeCartellaInModifica"
+                [attr.aria-label]="
+                  'Nuovo nome della cartella ' + cartella.nome
+                "
+                maxlength="80"
+                autocomplete="off"
+                [disabled]="occupato"
+                (keydown.enter)="
+                  $event.preventDefault();
+                  confermaModificaCartella(cartella)
+                "
+                (keydown.escape)="
+                  $event.preventDefault();
+                  annullaModificaCartella()
+                "
+                autofocus
+              />
+
+              <span>
+                {{ numeroFileCartella(cartella.id) }} file
+              </span>
+
+            </div>
+
+          </article>
+
+          <!-- AGGIUNGI CARTELLA -->
+
+          <button
+            type="button"
+            class="cartella-card cartella-nuova"
+            (click)="nuovaCartella()"
+            [disabled]="occupato || caricamento">
+
+            <div class="cartella-icona">
+              <i class="pi pi-plus"></i>
+            </div>
+
+            <strong>
+              Aggiungi cartella
+            </strong>
+
+          </button>
+
+        </div>
+
       </div>
+
+      <!-- SEZIONE FILE -->
+
+      <div class="sezione-file">
+
+        <div class="sezione-titolo">
+
+          <i class="pi pi-file"></i>
+
+          <h3>
+            {{
+              cartellaAperta
+                ? 'File della cartella'
+                : 'File senza cartella'
+            }}
+          </h3>
+
+        </div>
+
+        <!-- DRAG & DROP -->
+
+        <div
+          class="upload-rapido"
+          [class.drag-active]="trascinamentoAttivo"
+          (dragover)="trascinaSopra($event)"
+          (dragleave)="trascinaFuori($event)"
+          (drop)="rilasciaFile($event)">
+
+          <i class="pi pi-cloud-upload"></i>
+
+          <span>
+            Trascina qui un file per caricarlo
+          </span>
+
+          <small>
+            {{
+              categoria === 'pdf'
+                ? 'PDF · Massimo 15 MB'
+                : categoria === 'foto'
+                  ? 'JPG, PNG, WebP · Massimo 15 MB'
+                  : 'ZIP · Massimo 100 MB'
+            }}
+          </small>
+
+        </div>
+
+        <!-- CARICAMENTO -->
+
+        <div
+          *ngIf="caricamento"
+          class="caricamento">
+
+          <i class="pi pi-spin pi-spinner"></i>
+          Caricamento documenti...
+
+        </div>
+
+        <!-- STATO VUOTO -->
+
+        <div
+          *ngIf="
+            !caricamento &&
+            documentiVisibili.length === 0
+          "
+          class="stato-vuoto">
+
+          <div class="vuoto-icona">
+            <i class="pi pi-folder-open"></i>
+          </div>
+
+          <h3>Nessun file da visualizzare</h3>
+
+          <p>
+            {{
+              ricerca
+                ? 'Prova a modificare la ricerca.'
+                : 'Aggiungi un file per iniziare.'
+            }}
+          </p>
+
+        </div>
+
+        <!-- DOCUMENTI -->
+
+        <div
+          *ngIf="documentiVisibili.length > 0"
+          class="documenti-grid">
+
+          <article
+            *ngFor="
+              let doc of documentiVisibili;
+              trackBy: trackByDocumento
+            "
+            class="documento-card">
+
+            <!-- ICONA FILE -->
+
+            <div
+              class="documento-preview"
+              [class.pdf]="
+                doc.mimeType === 'application/pdf'
+              "
+              [class.foto]="
+                doc.mimeType.startsWith('image/')
+              ">
+
+              <i [class]="iconaDocumento(doc)"></i>
+
+            </div>
+
+            <!-- INFORMAZIONI -->
+
+            <div class="documento-info">
+
+              <h4 [title]="doc.nomeOriginale">
+                {{ doc.nomeOriginale }}
+              </h4>
+
+              <div class="documento-meta">
+
+                {{ dimensione(doc.dimensioneOriginale) }}
+
+                <span>·</span>
+
+                {{ doc.creatoIl | date:'dd/MM/yyyy' }}
+
+              </div>
+
+              <label
+                class="sposta-label"
+                [attr.for]="'sposta-' + doc.id">
+
+                Sposta in:
+              </label>
+
+              <select
+                [id]="'sposta-' + doc.id"
+                [ngModel]="doc.cartellaId || ''"
+                (ngModelChange)="spostaDocumento(doc, $event)"
+                [disabled]="occupato || caricamento">
+
+                <option value="">
+                  Senza cartella
+                </option>
+
+                <option
+                  *ngFor="
+                    let cartella of cartelleCategoria
+                  "
+                  [value]="cartella.id">
+
+                  {{ cartella.nome }}
+
+                </option>
+
+              </select>
+
+            </div>
+
+            <!-- AZIONI DOCUMENTO -->
+
+            <div class="documento-azioni">
+
+              <button
+                *ngIf="categoria !== 'zip'"
+                type="button"
+                title="Anteprima"
+                (click)="anteprima(doc)">
+
+                <i class="pi pi-eye"></i>
+                Apri
+              </button>
+
+              <button
+                type="button"
+                title="Scarica"
+                (click)="scarica(doc)">
+
+                <i class="pi pi-download"></i>
+                Scarica
+              </button>
+
+              <button
+                type="button"
+                class="elimina-btn"
+                title="Elimina"
+                [disabled]="occupato || caricamento"
+                (click)="elimina(doc)">
+
+                <i class="pi pi-trash"></i>
+                Elimina
+              </button>
+
+            </div>
+
+          </article>
+
+        </div>
+
+      </div>
+
     </section>
 
-    <!-- FINE PAGINA -->
-    <div class="archivio-footer">
-      <i class="pi pi-lock"></i>
-      I documenti sono conservati cifrati nel database.
-    </div>
+    <!-- FOOTER -->
+
+    <footer class="archivio-footer">
+
+      <i class="pi pi-shield"></i>
+
+      I file sono conservati cifrati nel database.
+
+    </footer>
 
   </ng-container>
 
-  <!-- FINESTRA ANTEPRIMA -->
+  <!-- FINE ARCHIVIO SBLOCCATO -->
+
+  <!-- MODALE SCELTA CARTELLA CARICAMENTO -->
+
+  <div
+    *ngIf="mostraSelezioneCartella"
+    class="modal-overlay">
+
+    <div
+      class="dialog-card"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Carica documento">
+
+      <div class="dialog-header">
+
+        <h2>Carica documento</h2>
+
+        <button
+          type="button"
+          class="chiudi-modal"
+          aria-label="Chiudi"
+          (click)="annullaCaricamento()"
+          [disabled]="occupato">
+
+          <i class="pi pi-times"></i>
+        </button>
+
+      </div>
+
+      <div class="dialog-body">
+
+        <p class="nome-file">
+
+          <i class="pi pi-file"></i>
+          {{ fileDaCaricare?.name }}
+
+        </p>
+
+        <label for="cartellaDestinazione">
+          Scegli la cartella di destinazione
+        </label>
+
+        <select
+          id="cartellaDestinazione"
+          [(ngModel)]="cartellaDestinazioneId"
+          [disabled]="occupato">
+
+          <option value="">
+            Senza cartella
+          </option>
+
+          <option
+            *ngFor="
+              let cartella of cartelleCategoria
+            "
+            [value]="cartella.id">
+
+            {{ cartella.nome }}
+
+          </option>
+
+        </select>
+
+        <p class="dialog-nota">
+          Il documento sarà cifrato prima di essere
+          conservato nel database.
+        </p>
+
+      </div>
+
+      <div class="dialog-azioni">
+
+        <button
+          type="button"
+          class="btn-secondario"
+          (click)="annullaCaricamento()"
+          [disabled]="occupato">
+
+          Annulla
+        </button>
+
+        <button
+          type="button"
+          class="btn-primario"
+          (click)="confermaCaricamento()"
+          [disabled]="occupato">
+
+          <i
+            class="pi"
+            [ngClass]="
+              occupato
+                ? 'pi-spin pi-spinner'
+                : 'pi-cloud-upload'
+            ">
+          </i>
+
+          {{
+            occupato
+              ? 'Caricamento...'
+              : 'Carica file'
+          }}
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ANTEPRIMA PDF E FOTO -->
+
   <div
     *ngIf="anteprimaUrl"
-    class="anteprima-overlay"
+    class="modal-overlay"
     (click)="chiudiAnteprima()">
 
     <div
@@ -406,31 +889,28 @@
       (click)="$event.stopPropagation()">
 
       <div class="anteprima-header">
-        <div class="anteprima-titolo">
-          <i
-            class="pi"
-            [ngClass]="anteprimaTipo === 'application/pdf'
-              ? 'pi-file-pdf'
-              : 'pi-image'">
-          </i>
 
-          <strong>{{ anteprimaNome }}</strong>
-        </div>
+        <strong>
+          {{ anteprimaNome }}
+        </strong>
 
         <button
           type="button"
           class="chiudi-modal"
           aria-label="Chiudi anteprima"
           (click)="chiudiAnteprima()">
+
           <i class="pi pi-times"></i>
         </button>
+
       </div>
 
       <div class="anteprima-contenuto">
+
         <img
           *ngIf="anteprimaTipo.startsWith('image/')"
           [src]="anteprimaUrl"
-          alt="Anteprima del documento"
+          alt="Anteprima documento"
         />
 
         <iframe
@@ -438,8 +918,11 @@
           [src]="anteprimaUrl"
           title="Anteprima PDF">
         </iframe>
+
       </div>
+
     </div>
+
   </div>
 
 </section>
