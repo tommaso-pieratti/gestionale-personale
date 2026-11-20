@@ -155,6 +155,25 @@ export class ArchivioApiService {
     );
   }
 
+  miniatura(id: string): Observable<Blob> {
+    return this.http.get(
+      `${this.base}/${encodeURIComponent(id)}/miniatura`,
+      { headers: this.headers(), responseType: 'blob' }
+    );
+  }
+
+  scaricaZip(
+    ids: string[],
+    categoria: CategoriaArchivio,
+    cartellaId: string | null
+  ): Observable<Blob> {
+    return this.http.post(
+      `${this.base}/download-zip`,
+      { ids, categoria, cartellaId },
+      { headers: this.headers(), responseType: 'blob' }
+    );
+  }
+
   elimina(id: string): Observable<void> {
     return this.http.delete<void>(
       `${this.base}/${encodeURIComponent(id)}`,

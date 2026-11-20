@@ -18,6 +18,7 @@ import {
   scryptSync,
   timingSafeEqual,
 } from 'crypto';
+import sharp = require('sharp');
 
 import { ArchivioDocumento } from './entities/archivio-documento.entity';
 import { ArchivioSessione } from './entities/archivio-sessione.entity';
@@ -30,10 +31,23 @@ const SESSION_MS = 15 * 60 * 1000;
 const MAX_STANDARD_BYTES = 15 * 1024 * 1024;
 const MAX_ZIP_BYTES = 100 * 1024 * 1024;
 
+const MAX_EXPORT_FILES = 2000;
+const MAX_EXPORT_BYTES = 2 * 1024 * 1024 * 1024;
+
 type TipoFile = {
   mimeType: string;
   categoria: ArchivioCategoria;
 };
+
+export interface ArchivioZipEntry {
+  id: string;
+  percorso: string;
+}
+
+export interface ArchivioZipExport {
+  nomeFile: string;
+  entries: ArchivioZipEntry[];
+}
 
 @Injectable()
 export class ArchivioDocumentiService implements OnModuleInit {
@@ -61,7 +75,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
   onModuleInit(): void {
     const key = Buffer.from(
-      this.config.getOrThrow<string>('ARCHIVIO_ENCRYPTION_KEY'),
+      this.config.getOrThrow<string>(
+        'ARCHIVIO_ENCRYPTION_KEY',
+      ),
       'base64',
     );
 
@@ -74,17 +90,23 @@ export class ArchivioDocumentiService implements OnModuleInit {
     this.key = key;
 
     const salt = Buffer.from(
-      this.config.getOrThrow<string>('ARCHIVIO_PASSWORD_SALT'),
+      this.config.getOrThrow<string>(
+        'ARCHIVIO_PASSWORD_SALT',
+      ),
       'hex',
     );
 
     const hash = Buffer.from(
-      this.config.getOrThrow<string>('ARCHIVIO_PASSWORD_HASH'),
+      this.config.getOrThrow<string>(
+        'ARCHIVIO_PASSWORD_HASH',
+      ),
       'hex',
     );
 
     if (salt.length !== 16 || hash.length !== 64) {
-      throw new Error('Salt/hash password archivio non validi');
+      throw new Error(
+        'Salt/hash password archivio non validi',
+      );
     }
 
     this.passwordSalt = salt;
@@ -98,7 +120,10 @@ export class ArchivioDocumentiService implements OnModuleInit {
   async login(
     password: string,
     clientId: string,
-  ): Promise<{ token: string; expiresInSeconds: number }> {
+  ): Promise<{
+    token: string;
+    expiresInSeconds: number;
+  }> {
     const now = Date.now();
     const attempts = this.loginAttempts.get(clientId);
 
@@ -116,7 +141,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
       typeof password !== 'string' ||
       password.length > 1024
     ) {
-      throw new BadRequestException('Password non valida');
+      throw new BadRequestException(
+        'Password non valida',
+      );
     }
 
     const candidate = scryptSync(
@@ -125,7 +152,12 @@ export class ArchivioDocumentiService implements OnModuleInit {
       64,
     );
 
-    if (!timingSafeEqual(candidate, this.passwordHash)) {
+    if (
+      !timingSafeEqual(
+        candidate,
+        this.passwordHash,
+      )
+    ) {
       const count =
         attempts && attempts.until > now
           ? attempts.count + 1
@@ -136,12 +168,16 @@ export class ArchivioDocumentiService implements OnModuleInit {
         until: now + SESSION_MS,
       });
 
-      throw new UnauthorizedException('Password errata');
+      throw new UnauthorizedException(
+        'Password errata',
+      );
     }
 
     this.loginAttempts.delete(clientId);
 
-    const token = randomBytes(32).toString('base64url');
+    const token = randomBytes(32).toString(
+      'base64url',
+    );
 
     await this.sessions.save(
       this.sessions.create({
@@ -165,7 +201,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
   async authorize(token: string): Promise<void> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
-      throw new UnauthorizedException('Sessione non valida');
+      throw new UnauthorizedException(
+        'Sessione non valida',
+      );
     }
 
     const session = await this.sessions.findOneBy({
@@ -174,12 +212,18 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     if (
       !session ||
-      new Date(session.scadeIl).getTime() <= Date.now()
+      new Date(session.scadeIl).getTime() <=
+        Date.now()
     ) {
-      throw new UnauthorizedException('Sessione scaduta');
+      throw new UnauthorizedException(
+        'Sessione scaduta',
+      );
     }
 
-    session.scadeIl = new Date(Date.now() + SESSION_MS);
+    session.scadeIl = new Date(
+      Date.now() + SESSION_MS,
+    );
+
     session.ultimoAccessoIl = new Date();
 
     await this.sessions.save(session);
@@ -203,7 +247,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
       !/^[1-9]\d*$/.test(id) ||
       BigInt(id) > 18446744073709551615n
     ) {
-      throw new BadRequestException('ID non valido');
+      throw new BadRequestException(
+        'ID non valido',
+      );
     }
 
     return id;
@@ -225,7 +271,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
     return categoria;
   }
 
-  private validateNomeCartella(nome: unknown): string {
+  private validateNomeCartella(
+    nome: unknown,
+  ): string {
     if (typeof nome !== 'string') {
       throw new BadRequestException(
         'Nome cartella non valido',
@@ -282,7 +330,8 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     const isPdf =
       buffer.length >= 5 &&
-      buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+      buffer.subarray(0, 5).toString('ascii') ===
+        '%PDF-';
 
     const isJpeg =
       buffer[0] === 0xff &&
@@ -300,17 +349,24 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     const isWebp =
       buffer.length >= 12 &&
-      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
-      buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+      buffer.subarray(0, 4).toString(
+        'ascii',
+      ) === 'RIFF' &&
+      buffer.subarray(8, 12).toString(
+        'ascii',
+      ) === 'WEBP';
 
     const isZip =
       buffer.length >= 4 &&
       buffer[0] === 0x50 &&
       buffer[1] === 0x4b &&
       (
-        (buffer[2] === 0x03 && buffer[3] === 0x04) ||
-        (buffer[2] === 0x05 && buffer[3] === 0x06) ||
-        (buffer[2] === 0x07 && buffer[3] === 0x08)
+        (buffer[2] === 0x03 &&
+          buffer[3] === 0x04) ||
+        (buffer[2] === 0x05 &&
+          buffer[3] === 0x06) ||
+        (buffer[2] === 0x07 &&
+          buffer[3] === 0x08)
       );
 
     if (isPdf && name.endsWith('.pdf')) {
@@ -322,7 +378,10 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     if (
       isJpeg &&
-      (name.endsWith('.jpg') || name.endsWith('.jpeg'))
+      (
+        name.endsWith('.jpg') ||
+        name.endsWith('.jpeg')
+      )
     ) {
       return {
         mimeType: 'image/jpeg',
@@ -391,12 +450,14 @@ export class ArchivioDocumentiService implements OnModuleInit {
       },
     });
 
-    return cartelle.map((cartella) =>
+    return cartelle.map(cartella =>
       this.cartellaMetadata(cartella),
     );
   }
 
-  private cartellaMetadata(cartella: ArchivioCartella) {
+  private cartellaMetadata(
+    cartella: ArchivioCartella,
+  ) {
     return {
       id: cartella.id,
       nome: cartella.nome,
@@ -409,7 +470,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
     nome: unknown,
     categoria: unknown,
   ) {
-    const validNome = this.validateNomeCartella(nome);
+    const validNome =
+      this.validateNomeCartella(nome);
+
     const validCategoria =
       this.validateCategoria(categoria);
 
@@ -428,7 +491,8 @@ export class ArchivioDocumentiService implements OnModuleInit {
     nome: unknown,
   ) {
     const validId = this.validateId(id);
-    const validNome = this.validateNomeCartella(nome);
+    const validNome =
+      this.validateNomeCartella(nome);
 
     const cartella = await this.folders.findOneBy({
       id: validId,
@@ -442,15 +506,19 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     cartella.nome = validNome;
 
-    const updated = await this.folders.save(cartella);
+    const updated =
+      await this.folders.save(cartella);
 
     return this.cartellaMetadata(updated);
   }
 
-  async removeCartella(id: string): Promise<void> {
+  async removeCartella(
+    id: string,
+  ): Promise<void> {
     const validId = this.validateId(id);
 
-    const result = await this.folders.delete(validId);
+    const result =
+      await this.folders.delete(validId);
 
     if (!result.affected) {
       throw new NotFoundException(
@@ -458,8 +526,7 @@ export class ArchivioDocumentiService implements OnModuleInit {
       );
     }
 
-    // La foreign key ON DELETE SET NULL mantiene
-    // i documenti, spostandoli tra quelli senza cartella.
+    // ON DELETE SET NULL mantiene i documenti.
   }
 
   private async getCartellaCompatibile(
@@ -500,7 +567,7 @@ export class ArchivioDocumentiService implements OnModuleInit {
       },
     });
 
-    return docs.map((documento) =>
+    return docs.map(documento =>
       this.metadata(documento),
     );
   }
@@ -510,7 +577,8 @@ export class ArchivioDocumentiService implements OnModuleInit {
       id: d.id,
       nomeOriginale: d.nomeOriginale,
       mimeType: d.mimeType,
-      dimensioneOriginale: d.dimensioneOriginale,
+      dimensioneOriginale:
+        d.dimensioneOriginale,
       creatoIl: d.creatoIl,
       cartellaId: d.cartellaId ?? null,
     };
@@ -573,9 +641,11 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     const doc = await this.documents.save(
       this.documents.create({
-        nomeOriginale: safeName || 'documento',
+        nomeOriginale:
+          safeName || 'documento',
         mimeType: tipo.mimeType,
-        dimensioneOriginale: String(file.size),
+        dimensioneOriginale:
+          String(file.size),
         contenutoCifrato: encrypted,
         iv,
         authTag: tag,
@@ -591,12 +661,14 @@ export class ArchivioDocumentiService implements OnModuleInit {
     rawCartellaId: unknown,
   ) {
     const validId = this.validateId(id);
+
     const cartellaId =
       this.normalizeCartellaId(rawCartellaId);
 
-    const documento = await this.documents.findOneBy({
-      id: validId,
-    });
+    const documento =
+      await this.documents.findOneBy({
+        id: validId,
+      });
 
     if (!documento) {
       throw new NotFoundException(
@@ -604,9 +676,10 @@ export class ArchivioDocumentiService implements OnModuleInit {
       );
     }
 
-    const categoria = this.categoriaDocumento(
-      documento.mimeType,
-    );
+    const categoria =
+      this.categoriaDocumento(
+        documento.mimeType,
+      );
 
     await this.getCartellaCompatibile(
       cartellaId,
@@ -615,7 +688,8 @@ export class ArchivioDocumentiService implements OnModuleInit {
 
     documento.cartellaId = cartellaId;
 
-    const updated = await this.documents.save(documento);
+    const updated =
+      await this.documents.save(documento);
 
     return this.metadata(updated);
   }
@@ -630,7 +704,9 @@ export class ArchivioDocumentiService implements OnModuleInit {
         'd.iv',
         'd.authTag',
       ])
-      .where('d.id = :id', { id: validId })
+      .where('d.id = :id', {
+        id: validId,
+      })
       .getOne();
 
     if (!documento) {
@@ -645,10 +721,14 @@ export class ArchivioDocumentiService implements OnModuleInit {
       documento.iv,
     );
 
-    decipher.setAuthTag(documento.authTag);
+    decipher.setAuthTag(
+      documento.authTag,
+    );
 
     const content = Buffer.concat([
-      decipher.update(documento.contenutoCifrato),
+      decipher.update(
+        documento.contenutoCifrato,
+      ),
       decipher.final(),
     ]);
 
@@ -661,12 +741,323 @@ export class ArchivioDocumentiService implements OnModuleInit {
   async remove(id: string): Promise<void> {
     const validId = this.validateId(id);
 
-    const result = await this.documents.delete(validId);
+    const result =
+      await this.documents.delete(validId);
 
     if (!result.affected) {
       throw new NotFoundException(
         'Documento non trovato',
       );
     }
+  }
+
+  // ============================================================
+  // NUOVO: MINIATURE FOTO
+  // ============================================================
+
+  async getMiniatura(
+    id: string,
+  ): Promise<Buffer> {
+    const validId = this.validateId(id);
+
+    // Prima controlliamo il tipo senza caricare
+    // il contenuto cifrato dal database.
+    const documento =
+      await this.documents.findOneBy({
+        id: validId,
+      });
+
+    if (!documento) {
+      throw new NotFoundException(
+        'Documento non trovato',
+      );
+    }
+
+    if (
+      ![
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+      ].includes(documento.mimeType)
+    ) {
+      throw new BadRequestException(
+        'La miniatura è disponibile solo per le fotografie',
+      );
+    }
+
+    const { content } =
+      await this.getFile(validId);
+
+    try {
+      return await sharp(content, {
+        limitInputPixels: 40_000_000,
+        failOn: 'error',
+      })
+        .rotate()
+        .resize({
+          width: 480,
+          height: 280,
+          fit: 'cover',
+          position: 'north',
+          withoutEnlargement: true,
+        })
+        .jpeg({
+          quality: 72,
+          mozjpeg: true,
+        })
+        .toBuffer();
+    } catch (error: unknown) {
+      // Il dettaglio rimane nel terminale backend, non viene inviato al browser.
+      // Questo permette di diagnosticare immagini danneggiate o formati non decodificabili.
+      console.error(
+        `[ARCHIVIO] Errore generazione miniatura documento ${validId}:`,
+        error,
+      );
+
+      throw new BadRequestException(
+        'Impossibile generare la miniatura di questa fotografia',
+      );
+    }
+  }
+
+  // ============================================================
+  // NUOVO: PREPARAZIONE ESPORTAZIONE ZIP
+  // ============================================================
+
+  private nomeSicuroZip(
+    nome: string,
+  ): string {
+    const pulito = nome
+      .replace(/[\/\\\x00-\x1f\x7f]/g, '_')
+      .replace(/^\.+/, '_')
+      .trim()
+      .slice(0, 150);
+
+    return pulito || 'senza-nome';
+  }
+
+  private percorsoUnivoco(
+    percorso: string,
+    utilizzati: Set<string>,
+  ): string {
+    let candidato = percorso;
+    let indice = 2;
+
+    const slash = percorso.lastIndexOf('/');
+    const cartella =
+      slash >= 0
+        ? percorso.slice(0, slash + 1)
+        : '';
+
+    const nome =
+      slash >= 0
+        ? percorso.slice(slash + 1)
+        : percorso;
+
+    const punto = nome.lastIndexOf('.');
+
+    const base =
+      punto > 0
+        ? nome.slice(0, punto)
+        : nome;
+
+    const estensione =
+      punto > 0
+        ? nome.slice(punto)
+        : '';
+
+    while (
+      utilizzati.has(
+        candidato.toLowerCase(),
+      )
+    ) {
+      candidato =
+        `${cartella}${base} (${indice})${estensione}`;
+
+      indice++;
+    }
+
+    utilizzati.add(
+      candidato.toLowerCase(),
+    );
+
+    return candidato;
+  }
+
+  async preparaEsportazioneZip(
+    rawIds: unknown,
+    rawCategoria: unknown,
+    rawCartellaId: unknown,
+  ): Promise<ArchivioZipExport> {
+    const categoria =
+      this.validateCategoria(rawCategoria);
+
+    const cartellaId =
+      this.normalizeCartellaId(
+        rawCartellaId,
+      );
+
+    if (
+      !Array.isArray(rawIds) ||
+      rawIds.length === 0 ||
+      rawIds.length > MAX_EXPORT_FILES
+    ) {
+      throw new BadRequestException(
+        `Seleziona da 1 a ${MAX_EXPORT_FILES} documenti per il download`,
+      );
+    }
+
+    const ids = rawIds.map(id =>
+      this.validateId(id),
+    );
+
+    if (
+      new Set(ids).size !== ids.length
+    ) {
+      throw new BadRequestException(
+        'La richiesta contiene documenti duplicati',
+      );
+    }
+
+    // Recuperiamo solo i metadati.
+    // I contenuti saranno decifrati durante
+    // la generazione dello ZIP.
+    const documenti =
+      await this.documents
+        .createQueryBuilder('d')
+        .where('d.id IN (:...ids)', {
+          ids,
+        })
+        .getMany();
+
+    if (documenti.length !== ids.length) {
+      throw new NotFoundException(
+        'Uno o più documenti non sono stati trovati',
+      );
+    }
+
+    const perId = new Map(
+      documenti.map(doc => [
+        String(doc.id),
+        doc,
+      ]),
+    );
+
+    const cartelle =
+      await this.folders.find({
+        where: {
+          categoria,
+        },
+      });
+
+    const cartellePerId = new Map(
+      cartelle.map(cartella => [
+        String(cartella.id),
+        cartella,
+      ]),
+    );
+
+    if (
+      cartellaId &&
+      !cartellePerId.has(cartellaId)
+    ) {
+      throw new NotFoundException(
+        'Cartella non trovata',
+      );
+    }
+
+    let totaleBytes = 0;
+    const utilizzati = new Set<string>();
+    const entries: ArchivioZipEntry[] = [];
+
+    for (const id of ids) {
+      const doc = perId.get(id);
+
+      if (!doc) {
+        throw new NotFoundException(
+          'Documento non trovato',
+        );
+      }
+
+      if (
+        this.categoriaDocumento(
+          doc.mimeType,
+        ) !== categoria
+      ) {
+        throw new BadRequestException(
+          'Il documento non appartiene alla categoria selezionata',
+        );
+      }
+
+      // Nella vista di una cartella si possono
+      // esportare soltanto i file di quella cartella.
+      if (
+        cartellaId &&
+        String(doc.cartellaId ?? '') !==
+          cartellaId
+      ) {
+        throw new BadRequestException(
+          'Un documento non appartiene alla cartella selezionata',
+        );
+      }
+
+      totaleBytes += Number(
+        doc.dimensioneOriginale,
+      );
+
+      if (
+        !Number.isFinite(totaleBytes) ||
+        totaleBytes > MAX_EXPORT_BYTES
+      ) {
+        throw new BadRequestException(
+          'La dimensione complessiva supera 2 GB',
+        );
+      }
+
+      const nomeFile = this.nomeSicuroZip(
+        doc.nomeOriginale,
+      );
+
+      let percorso = nomeFile;
+
+      // Nella vista principale preserviamo
+      // l'organizzazione in sottocartelle.
+      if (!cartellaId && doc.cartellaId) {
+        const cartella =
+          cartellePerId.get(
+            String(doc.cartellaId),
+          );
+
+        if (!cartella) {
+          throw new BadRequestException(
+            'Cartella del documento non trovata',
+          );
+        }
+
+        percorso =
+          `${this.nomeSicuroZip(cartella.nome)}/${nomeFile}`;
+      }
+
+      entries.push({
+        id,
+        percorso: this.percorsoUnivoco(
+          percorso,
+          utilizzati,
+        ),
+      });
+    }
+
+    const data = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    const nomeFile = cartellaId
+      ? `archivio-${categoria}-cartella-${cartellaId}-${data}.zip`
+      : `archivio-${categoria}-${data}.zip`;
+
+    return {
+      nomeFile,
+      entries,
+    };
   }
 }

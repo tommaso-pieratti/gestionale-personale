@@ -242,6 +242,16 @@
           <button
             type="button"
             class="btn-secondario"
+            (click)="scaricaTutto()"
+            [disabled]="caricamento || occupato || downloadZipInCorso || documentiDaEsportare.length === 0"
+            [attr.aria-label]="'Scarica tutto in ZIP: ' + documentiDaEsportare.length + ' file'">
+            <i class="pi" [ngClass]="downloadZipInCorso ? 'pi-spin pi-spinner' : 'pi-download'"></i>
+            {{ downloadZipInCorso ? 'Preparazione ZIP...' : 'Scarica tutto' }}
+          </button>
+
+          <button
+            type="button"
+            class="btn-secondario"
             (click)="aggiorna()"
             [disabled]="caricamento || occupato">
 
@@ -654,7 +664,20 @@
                 doc.mimeType.startsWith('image/')
               ">
 
-              <i [class]="iconaDocumento(doc)"></i>
+              <ng-container *ngIf="doc.mimeType.startsWith('image/'); else iconaFile">
+                <div #miniaturaElemento class="miniatura-contenitore"
+                     [attr.data-miniatura-id]="doc.id">
+                  <img *ngIf="miniatureUrl[doc.id]"
+                       class="miniatura-immagine"
+                       [src]="miniatureUrl[doc.id]"
+                       [alt]="doc.nomeOriginale"
+                       loading="lazy" decoding="async" />
+                  <i *ngIf="!miniatureUrl[doc.id]" class="pi pi-image miniatura-segnaposto"></i>
+                </div>
+              </ng-container>
+              <ng-template #iconaFile>
+                <i [class]="iconaDocumento(doc)"></i>
+              </ng-template>
 
             </div>
 

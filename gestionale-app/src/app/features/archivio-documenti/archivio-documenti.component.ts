@@ -2,14 +2,18 @@
 import {
   Component,
   OnDestroy,
-  OnInit
+  OnInit,
+  AfterViewInit,
+  ElementRef,
+  QueryList,
+  ViewChildren
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   DomSanitizer,
   SafeResourceUrl
 } from '@angular/platform-browser';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 
 import {
   ArchivioApiService,
@@ -36,7 +40,21 @@ interface OrganizzazioneLocale {
   styleUrls: ['./archivio-documenti.component.scss']
 })
 export class ArchivioDocumentiComponent
-  implements OnInit, OnDestroy {
+  implements OnInit, AfterViewInit, OnDestroy {
+
+  @ViewChildren('miniaturaElemento')
+  private miniatureElementi!: QueryList<ElementRef<HTMLElement>>;
+
+  miniatureUrl: Record<string, string> = {};
+  downloadZipInCorso = false;
+  private osservatoreMiniature: IntersectionObserver | null = null;
+  private miniatureChanges: Subscription | null = null;
+  private miniatureRichieste = new Set<string>();
+  private miniatureCoda: string[] = [];
+  private miniatureAttive = 0;
+  private readonly massimoMiniatureParallele = 3;
+  private generazioneMiniature = 0;
+  private miniatureSubscriptions = new Set<Subscription>();
 
   password = '';
   mostraPassword = false;
@@ -105,6 +123,92 @@ export class ArchivioDocumentiComponent
     }
   }
 
+  ngAfterViewInit(): void {
+    if (typeof IntersectionObserver !== 'undefined') {
+      this.osservatoreMiniature = new IntersectionObserver(
+        entries => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const id = (entry.target as HTMLElement).dataset['miniaturaId'];
+            if (id) this.accodaMiniatura(id);
+            this.osservatoreMiniature?.unobserve(entry.target);
+          }
+        },
+        { rootMargin: '180px 0px', threshold: 0.01 }
+      );
+    }
+
+    this.miniatureChanges = this.miniatureElementi.changes.subscribe(
+      () => this.osservaMiniature()
+    );
+    this.osservaMiniature();
+  }
+
+  private osservaMiniature(): void {
+    if (!this.api.autenticato || this.distrutto) return;
+    this.osservatoreMiniature?.disconnect();
+    if (!this.miniatureElementi) return;
+    for (const elemento of this.miniatureElementi.toArray()) {
+      const id = elemento.nativeElement.dataset['miniaturaId'];
+      if (!id || this.miniatureUrl[id] || this.miniatureRichieste.has(id)) continue;
+      if (this.osservatoreMiniature) {
+        this.osservatoreMiniature.observe(elemento.nativeElement);
+      } else {
+        this.accodaMiniatura(id);
+      }
+    }
+  }
+
+  private accodaMiniatura(id: string): void {
+    if (!this.api.autenticato || this.distrutto ||
+        this.miniatureUrl[id] || this.miniatureRichieste.has(id)) return;
+    this.miniatureRichieste.add(id);
+    this.miniatureCoda.push(id);
+    this.avviaMiniature();
+  }
+
+  private avviaMiniature(): void {
+    while (this.miniatureAttive < this.massimoMiniatureParallele &&
+           this.miniatureCoda.length && this.api.autenticato && !this.distrutto) {
+      const id = this.miniatureCoda.shift()!;
+      const generazione = this.generazioneMiniature;
+      this.miniatureAttive++;
+      const subscription = this.api.miniatura(id).subscribe({
+        next: blob => {
+          if (generazione !== this.generazioneMiniature || !this.api.autenticato) return;
+          this.miniatureUrl = {
+            ...this.miniatureUrl,
+            [id]: URL.createObjectURL(blob)
+          };
+        },
+        error: () => {
+          // Mantiene l'icona per le immagini non supportate.
+          termina();
+        },
+        complete: () => termina()
+      });
+      const termina = () => {
+        this.miniatureSubscriptions.delete(subscription);
+        if (generazione !== this.generazioneMiniature) return;
+        this.miniatureAttive--;
+        this.avviaMiniature();
+      };
+      this.miniatureSubscriptions.add(subscription);
+    }
+  }
+
+  private liberaMiniature(): void {
+    this.generazioneMiniature++;
+    this.osservatoreMiniature?.disconnect();
+    for (const subscription of this.miniatureSubscriptions) subscription.unsubscribe();
+    this.miniatureSubscriptions.clear();
+    for (const url of Object.values(this.miniatureUrl)) URL.revokeObjectURL(url);
+    this.miniatureUrl = {};
+    this.miniatureRichieste.clear();
+    this.miniatureCoda = [];
+    this.miniatureAttive = 0;
+  }
+
   ngOnDestroy(): void {
     this.distrutto = true;
 
@@ -113,6 +217,9 @@ export class ArchivioDocumentiComponent
     }
 
     this.chiudiAnteprima();
+    this.miniatureChanges?.unsubscribe();
+    this.liberaMiniature();
+    this.osservatoreMiniature?.disconnect();
   }
 
   get titoloCategoria(): string {
@@ -269,6 +376,7 @@ export class ArchivioDocumentiComponent
 
   blocca(avviso = ''): void {
     this.api.blocca();
+    this.liberaMiniature();
 
     this.documenti = [];
     this.cartelle = [];
@@ -555,6 +663,7 @@ export class ArchivioDocumentiComponent
   // ==========================================================
 
   cambiaCategoria(categoria: CategoriaArchivio): void {
+    this.liberaMiniature();
     this.categoria = categoria;
     this.cartellaApertaId = null;
     this.ricerca = '';
@@ -998,6 +1107,57 @@ export class ArchivioDocumentiComponent
   // DOWNLOAD E ANTEPRIME
   // ==========================================================
 
+  get documentiDaEsportare(): ArchivioDocumento[] {
+    const ricerca = this.ricerca.trim().toLowerCase();
+    return this.documentiCategoria.filter(doc => {
+      if (this.cartellaApertaId && doc.cartellaId !== this.cartellaApertaId) {
+        return false;
+      }
+      return !ricerca || doc.nomeOriginale.toLowerCase().includes(ricerca);
+    });
+  }
+
+  scaricaTutto(): void {
+    if (this.downloadZipInCorso || this.occupato || this.caricamento ||
+        !this.api.autenticato) return;
+
+    const ids = this.documentiDaEsportare.map(doc => String(doc.id));
+    if (!ids.length) {
+      this.errore = 'Non ci sono file da scaricare.';
+      return;
+    }
+
+    this.downloadZipInCorso = true;
+    this.errore = '';
+    this.messaggio = '';
+    this.attivita();
+
+    const categoria = this.categoria;
+    const cartellaId = this.cartellaApertaId;
+    const nomeBase = this.cartellaAperta?.nome || `archivio-${categoria}`;
+    const nomeSicuro = nomeBase.replace(/[\\/:*?"<>|]/g, '-').trim() || 'archivio';
+
+    this.api.scaricaZip(ids, categoria, cartellaId).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${nomeSicuro}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        this.downloadZipInCorso = false;
+        this.messaggio = `Download ZIP avviato (${ids.length} file).`;
+        this.attivita();
+      },
+      error: error => {
+        this.downloadZipInCorso = false;
+        this.erroreApi(error);
+      }
+    });
+  }
+
   scarica(doc: ArchivioDocumento): void {
     this.errore = '';
     this.attivita();
@@ -1091,6 +1251,13 @@ export class ArchivioDocumentiComponent
     this.api.elimina(String(doc.id)).subscribe({
       next: () => {
         this.chiudiAnteprima();
+
+        const urlMiniatura = this.miniatureUrl[String(doc.id)];
+        if (urlMiniatura) {
+          URL.revokeObjectURL(urlMiniatura);
+          const { [String(doc.id)]: _rimossa, ...altre } = this.miniatureUrl;
+          this.miniatureUrl = altre;
+        }
 
         this.documenti = this.documenti.filter(
           elemento => elemento.id !== doc.id

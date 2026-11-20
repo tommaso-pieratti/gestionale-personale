@@ -20,9 +20,28 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
+import { Readable } from 'stream';
+
+import type { Archiver } from 'archiver';
 
 import { ArchivioAuthGuard } from './archivio-auth.guard';
 import { ArchivioDocumentiService } from './archivio-documenti.service';
+
+// ============================================================
+// ARCHIVER - COMPATIBILITÀ COMMONJS
+// ============================================================
+// La libreria viene caricata con require.
+// Il tipo Archiver serve a mantenere la tipizzazione
+// senza utilizzare un export "default" inesistente.
+
+const creaArchivio = require('archiver') as (
+  formato: 'zip',
+  opzioni: {
+    zlib: {
+      level: number;
+    };
+  },
+) => Archiver;
 
 @Controller('archivio-documenti')
 export class ArchivioDocumentiController {
@@ -68,7 +87,8 @@ export class ArchivioDocumentiController {
   @Post('cartelle')
   @UseGuards(ArchivioAuthGuard)
   createCartella(
-    @Body() body: {
+    @Body()
+    body: {
       nome?: string;
       categoria?: string;
     },
@@ -135,7 +155,10 @@ export class ArchivioDocumentiController {
   @UseGuards(ArchivioAuthGuard)
   moveDocumento(
     @Param('id') id: string,
-    @Body() body: { cartellaId?: string | null },
+    @Body()
+    body: {
+      cartellaId?: string | null;
+    },
   ) {
     if (
       !body ||
@@ -154,6 +177,148 @@ export class ArchivioDocumentiController {
       body.cartellaId,
     );
   }
+
+  // ============================================================
+  // DOWNLOAD DI PIÙ DOCUMENTI IN ZIP
+  // ============================================================
+
+  @Post('download-zip')
+  @UseGuards(ArchivioAuthGuard)
+  async downloadZip(
+    @Body()
+    body: {
+      ids?: string[];
+      categoria?: string;
+      cartellaId?: string | null;
+    },
+    @Res() res: Response,
+  ): Promise<void> {
+    // Validazione di categoria, cartella e documenti.
+    const esportazione =
+      await this.service.preparaEsportazioneZip(
+        body?.ids,
+        body?.categoria,
+        body?.cartellaId,
+      );
+
+    // Creazione dello ZIP.
+    const archivio = creaArchivio('zip', {
+      zlib: {
+        level: 6,
+      },
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/zip',
+    );
+
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${esportazione.nomeFile}"`,
+    );
+
+    res.setHeader(
+      'Cache-Control',
+      'no-store',
+    );
+
+    res.setHeader(
+      'X-Content-Type-Options',
+      'nosniff',
+    );
+
+    const interrompi = (
+      errore: Error,
+    ): void => {
+      archivio.abort();
+
+      if (!res.destroyed) {
+        res.destroy(errore);
+      }
+    };
+
+    archivio.on('error', interrompi);
+
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        archivio.abort();
+      }
+    });
+
+    // Trasmissione progressiva dello ZIP.
+    archivio.pipe(res);
+
+    // Ogni documento viene decifrato quando
+    // il relativo stream viene letto.
+    for (const entry of esportazione.entries) {
+      const fileStream = Readable.from(
+        this.contenutoDocumentoZip(entry.id),
+      );
+
+      fileStream.on('error', interrompi);
+
+      archivio.append(fileStream, {
+        name: entry.percorso,
+      });
+    }
+
+    try {
+      await archivio.finalize();
+    } catch (error) {
+      interrompi(
+        error instanceof Error
+          ? error
+          : new Error(
+              'Errore nella generazione ZIP',
+            ),
+      );
+    }
+  }
+
+  private async *contenutoDocumentoZip(
+    id: string,
+  ): AsyncGenerator<Buffer> {
+    const { content } =
+      await this.service.getFile(id);
+
+    yield content;
+  }
+
+  // ============================================================
+  // MINIATURA FOTOGRAFIA
+  // ============================================================
+
+  @Get(':id/miniatura')
+  @UseGuards(ArchivioAuthGuard)
+  async miniatura(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const miniatura =
+      await this.service.getMiniatura(id);
+
+    res.setHeader(
+      'Content-Type',
+      'image/jpeg',
+    );
+
+    res.setHeader(
+      'Cache-Control',
+      'private, no-store',
+    );
+
+    res.setHeader(
+      'X-Content-Type-Options',
+      'nosniff',
+    );
+
+    res.send(miniatura);
+  }
+
+  // ============================================================
+  // DOWNLOAD SINGOLO DOCUMENTO
+  // ============================================================
 
   @Get(':id/file')
   @UseGuards(ArchivioAuthGuard)
@@ -186,6 +351,10 @@ export class ArchivioDocumentiController {
 
     res.send(content);
   }
+
+  // ============================================================
+  // ELIMINAZIONE DOCUMENTO
+  // ============================================================
 
   @Delete(':id')
   @HttpCode(204)
